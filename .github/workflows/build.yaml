@@ -1,24 +1,32 @@
 on: [push]
 
-name: Build
+name: Test
 
 jobs:
-  linux_aarch64_musl:
-    name: Linux aarch
+
+  linux_x86_64:
+    name: Linux x86_64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - name: Check out repository
+        uses: actions/checkout@v2
+      - name: Cargo test
+        run: cargo test
+
+  linux_aarch64_musl:
+    name: Linux aarch64 MUSL
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+      - name: Add rustup toolchain
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: aarch64-unknown-linux-musl
           override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          use-cross: true
-          command: build
-          args: --target aarch64-unknown-linux-musl
-      - uses: actions-rs/cargo@v1
+      - name: Cargo test (with cross)
+        uses: actions-rs/cargo@v1
         with:
           use-cross: true
           command: test
