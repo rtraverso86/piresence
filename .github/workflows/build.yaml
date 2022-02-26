@@ -39,9 +39,9 @@ jobs:
         with:
           use-cross: true
           command: test
-          args: --target ${{ matrix.target.cargo }} --${{ MODE }}
+          args: --target ${{ matrix.target.cargo }} --${{ env.MODE }}
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: ${{ matrix.target.arch }}-${{ ARTIFACT_BASENAME }}
-          path: target/${{ matrix.target.cargo }}/${{ MODE }}/${{ ARTIFACT_BASENAME }}
+          name: ${{ matrix.target.arch }}-${{ env.ARTIFACT_BASENAME }}
+          path: target/${{ matrix.target.cargo }}/${{ env.MODE }}/${{ env.ARTIFACT_BASENAME }}
