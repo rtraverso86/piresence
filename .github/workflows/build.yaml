@@ -1,6 +1,10 @@
 on: [push]
 
-name: Test
+name: Build, Test, and Release
+
+env:
+  ARTIFACT_BASENAME: "ha-addon-piresence"
+  MODE: "release"
 
 jobs:
 
@@ -13,9 +17,14 @@ jobs:
       - name: Cargo test
         run: cargo test
 
-  linux_aarch64_musl:
-    name: Linux aarch64 MUSL
+  cross_build:
+    name: Cross Build (${{ matrix.target.arch }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - {arch: x86_64, cargo: x86_64-unknown-linux-gnu}
+          - {arch: aarch64, cargo: aarch64-unknown-linux-musl}
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
@@ -23,11 +32,16 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: aarch64-unknown-linux-musl
+          target: ${{ matrix.target.cargo }}
           override: true
       - name: Cargo test (with cross)
         uses: actions-rs/cargo@v1
         with:
           use-cross: true
           command: test
-          args: --target aarch64-unknown-linux-musl
+          args: --target ${{ matrix.target.cargo }} --${{ MODE }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.target.arch }}-${{ ARTIFACT_BASENAME }}
+          path: target/${{ matrix.target.cargo }}/${{ MODE }}/${{ ARTIFACT_BASENAME }}
