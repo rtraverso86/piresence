@@ -8,17 +8,8 @@ env:
 
 jobs:
 
-  linux_x86_64:
-    name: Linux x86_64
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v2
-      - name: Cargo test
-        run: cargo test
-
-  cross_build:
-    name: Cross Build (${{ matrix.target.arch }})
+  build:
+    name: Build (${{ matrix.target.arch }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -28,18 +19,29 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
+
       - name: Add rustup toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target.cargo }}
           override: true
+
       - name: Cargo test (with cross)
         uses: actions-rs/cargo@v1
+        if: ${{ matrix.target.arch }} != "x86_64"
         with:
           use-cross: true
           command: test
           args: --target ${{ matrix.target.cargo }} --${{ env.MODE }}
+
+      - name: Cargo test
+        if: ${{ matrix.target.arch }} == "x86_64"
+        run: cargo test --${{ env.MODE }} --target ${{ matrix.target.cargo }}
+      
+      - name: Debug target files
+        run: ls -lR .
+
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
