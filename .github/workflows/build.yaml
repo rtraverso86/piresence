@@ -29,14 +29,14 @@ jobs:
 
       - name: Cargo test (with cross)
         uses: actions-rs/cargo@v1
-        if: matrix.target.arch  != "x86_64"
+        if: matrix.target.arch  != 'x86_64'
         with:
           use-cross: true
           command: test
           args: --target ${{ matrix.target.cargo }} --${{ env.MODE }}
 
       - name: Cargo test
-        if: matrix.target.arch  == "x86_64"
+        if: matrix.target.arch  == 'x86_64'
         run: cargo test --${{ env.MODE }} --target ${{ matrix.target.cargo }}
       
       - name: Debug target files
