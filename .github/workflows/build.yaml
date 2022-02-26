@@ -43,7 +43,11 @@ jobs:
           command: build
           args: --target ${{ matrix.target.cargo }} --${{ env.MODE }}
 
-      - name: Cargo test and build
+      - name: Cargo test
+        if: matrix.target.arch  == 'x86_64'
+        run: cargo test test --${{ env.MODE }} --target ${{ matrix.target.cargo }}
+
+      - name: Cargo build
         if: matrix.target.arch  == 'x86_64'
         run: cargo test build --${{ env.MODE }} --target ${{ matrix.target.cargo }}
 
