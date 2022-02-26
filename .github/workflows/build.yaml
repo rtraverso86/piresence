@@ -37,7 +37,7 @@ jobs:
 
       - name: Cargo test and build
         if: matrix.target.arch  == 'x86_64'
-        run: cargo test --${{ env.MODE }} --target ${{ matrix.target.cargo }}
+        run: cargo test build --${{ env.MODE }} --target ${{ matrix.target.cargo }}
       
       - name: Debug target files
         run: ls -lR .
