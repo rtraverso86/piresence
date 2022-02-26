@@ -27,18 +27,26 @@ jobs:
           target: ${{ matrix.target.cargo }}
           override: true
 
-      - name: Cargo test and build(with cross)
+      - name: Cargo test (with cross)
         uses: actions-rs/cargo@v1
         if: matrix.target.arch  != 'x86_64'
         with:
           use-cross: true
-          command: test build
+          command: test
+          args: --target ${{ matrix.target.cargo }} --${{ env.MODE }}
+
+      - name: Cargo build (with cross)
+        uses: actions-rs/cargo@v1
+        if: matrix.target.arch  != 'x86_64'
+        with:
+          use-cross: true
+          command: build
           args: --target ${{ matrix.target.cargo }} --${{ env.MODE }}
 
       - name: Cargo test and build
         if: matrix.target.arch  == 'x86_64'
         run: cargo test build --${{ env.MODE }} --target ${{ matrix.target.cargo }}
-      
+
       - name: Debug target files
         run: ls -lR .
 
