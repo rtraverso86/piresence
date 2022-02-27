@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         target:
-          - {arch: x86_64, cargo: x86_64-unknown-linux-gnu}
+          - {arch: amd64, cargo: x86_64-unknown-linux-gnu}
           - {arch: aarch64, cargo: aarch64-unknown-linux-musl}
     steps:
       - name: Check out repository
@@ -34,7 +34,7 @@ jobs:
 
       - name: Cargo test (with cross)
         uses: actions-rs/cargo@v1
-        if: matrix.target.arch  != 'x86_64'
+        if: matrix.target.arch  != 'amd64'
         with:
           use-cross: true
           command: test
@@ -42,18 +42,18 @@ jobs:
 
       - name: Cargo build (with cross)
         uses: actions-rs/cargo@v1
-        if: matrix.target.arch  != 'x86_64'
+        if: matrix.target.arch  != 'amd64'
         with:
           use-cross: true
           command: build
           args: --target ${{ matrix.target.cargo }} --${{ env.MODE }}
 
       - name: Cargo test
-        if: matrix.target.arch  == 'x86_64'
+        if: matrix.target.arch  == 'amd64'
         run: cargo test --${{ env.MODE }} --target ${{ matrix.target.cargo }}
 
       - name: Cargo build
-        if: matrix.target.arch  == 'x86_64'
+        if: matrix.target.arch  == 'amd64'
         run: cargo build --${{ env.MODE }} --target ${{ matrix.target.cargo }}
 
       - name: Upload artifact
