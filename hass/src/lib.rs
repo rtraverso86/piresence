@@ -1,16 +1,7 @@
-use std::env;
 use tungstenite::{connect, Message};
 use url::Url;
 
-fn main() {
-    let host = env::var("HA_HOST").expect("environment variable missing: HA_HOST");
-    let port : u16 = env::var("HA_PORT")
-        .unwrap_or("8123".into())
-        //.expect("environment variable missing: HA_PORT")
-        .parse()
-        .expect("environment variable error: HA_PORT only accepts 16 bit unsigned integers");
-    let token = env::var("HA_TOKEN")
-        .unwrap_or("ABCDEFG".into());
+pub fn wsconnect(host: &str, port: u16, token: &str) {
 
     env_logger::init();
     let addr = format!("{}://{}:{}/api/websocket", "ws", host, port);
@@ -36,4 +27,13 @@ fn main() {
     println!("Received: {}", msg);
 
     socket.close(None).expect("Error closing socket");
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        let result = 2 + 2;
+        assert_eq!(result, 4);
+    }
 }
