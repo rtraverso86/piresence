@@ -1,6 +1,11 @@
 use tungstenite::{connect, Message};
 use url::Url;
 
+pub mod interface;
+pub mod error;
+
+use interface::HAInterface;
+
 pub fn wsconnect(host: &str, port: u16, token: &str) {
 
     env_logger::init();
