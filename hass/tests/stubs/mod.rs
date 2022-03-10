@@ -4,10 +4,14 @@ use std::{
         TcpListener,
         TcpStream,
     },
-    sync::mpsc::{
-        self,
-        Sender,
-        TryRecvError,
+    sync::{
+        Arc,
+        Barrier,
+        mpsc::{
+            self,
+            Sender,
+            TryRecvError,
+        },
     },
     time::Duration,
     thread::{
@@ -34,9 +38,13 @@ impl WsApiServer {
         let host = "127.0.0.1";
         let (tx, rx) = mpsc::channel();
         let sleep_interval = Duration::from_millis(10);
+        let barrier = Arc::new(Barrier::new(2));
+
+        let server_barrier = Arc::clone(&barrier);
         let server_thread = thread::spawn(move || {
             let listener = TcpListener::bind(format!("{}:{}", host, port)).unwrap();
             listener.set_nonblocking(true).expect("could not set non-blocking");
+            server_barrier.wait();
             for stream in listener.incoming() {
                 match stream {
                     Ok(s) => {
@@ -57,6 +65,7 @@ impl WsApiServer {
             }
         });
 
+        barrier.wait();
         WsApiServer {
             host: String::from(host),
             port: port,
