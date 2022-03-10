@@ -21,7 +21,7 @@ type WebSocket = tungstenite::protocol::WebSocket<MaybeTlsStream<TcpStream>>;
 pub struct WsApi {
     socket: WebSocket,
     auth_token: String,
-    url: String
+    url: String,
 }
 
 impl WsApi {
@@ -55,6 +55,10 @@ impl WsApi {
     /// token `auth_token`.
     pub fn new_secure(host: &str, port: u16, auth_token: &str) -> Result<WsApi, Error> {
         Self::new(true, host, port, auth_token)
+    }
+
+    pub fn url(&self) -> &str {
+        &self.url
     }
 }
 
