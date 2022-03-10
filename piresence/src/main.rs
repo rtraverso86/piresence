@@ -2,10 +2,14 @@ use std::env;
 use std::process;
 use hass;
 use piresence::CmdArgs;
+use tracing_subscriber;
 
 fn main() {
+    // Initialize logging framework
+    tracing_subscriber::fmt::init();
+
     let args = CmdArgs::parse_args();
-    println!("Args = {:?}", args);
+    tracing::trace!("args: {:?}", args);
     hass::wsconnect(&args.host, args.port, &args.token);
 
     /*

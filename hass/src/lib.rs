@@ -1,14 +1,13 @@
 use tungstenite::{connect, Message};
 use url::Url;
 
-pub mod interface;
+pub mod wsapi;
 pub mod error;
 
-use interface::HAInterface;
+use wsapi::WsApi;
 
 pub fn wsconnect(host: &str, port: u16, token: &str) {
 
-    env_logger::init();
     let addr = format!("{}://{}:{}/api/websocket", "ws", host, port);
 
     let (mut socket, response) =
@@ -32,13 +31,4 @@ pub fn wsconnect(host: &str, port: u16, token: &str) {
     println!("Received: {}", msg);
 
     socket.close(None).expect("Error closing socket");
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
 }

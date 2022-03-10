@@ -18,17 +18,17 @@ type WebSocket = tungstenite::protocol::WebSocket<MaybeTlsStream<TcpStream>>;
 /// Manages the connection to a remote Home Assistance instance via its
 /// [WebSocket interface](https://developers.home-assistant.io/docs/api/websocket).
 #[derive(Debug)]
-pub struct HAInterface {
+pub struct WsApi {
     socket: WebSocket,
     auth_token: String,
     url: String
 }
 
-impl HAInterface {
+impl WsApi {
 
     /// Connects to a given `host` and `port` with the provided authentication
     /// token `auth_token`.
-    pub fn new(secure: bool, host: &str, port: u16, auth_token: &str) -> Result<HAInterface, Error> {
+    pub fn new(secure: bool, host: &str, port: u16, auth_token: &str) -> Result<WsApi, Error> {
         let scheme = if secure { "wss" } else { "ws" };
         let url = Url::parse(&format!("{}://{}:{}/api/websocket", scheme, host, port)).unwrap();
         let (socket, response) = match connect(&url) {
@@ -38,7 +38,7 @@ impl HAInterface {
             },
         };
 
-        Ok(HAInterface {
+        Ok(WsApi {
             socket: socket,
             auth_token: String::from(auth_token),
             url: String::from(url),
@@ -47,25 +47,30 @@ impl HAInterface {
 
     /// Connects to a given `host` and `port` with the provided authentication
     /// token `auth_token`.
-    pub fn new_unsecure(host: &str, port: u16, auth_token: &str) -> Result<HAInterface, Error> {
+    pub fn new_unsecure(host: &str, port: u16, auth_token: &str) -> Result<WsApi, Error> {
         Self::new(false, host, port, auth_token)
     }
 
     /// Connects to a given `host` and `port` with the provided authentication
     /// token `auth_token`.
-    pub fn new_secure(host: &str, port: u16, auth_token: &str) -> Result<HAInterface, Error> {
+    pub fn new_secure(host: &str, port: u16, auth_token: &str) -> Result<WsApi, Error> {
         Self::new(true, host, port, auth_token)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    //use super::*;
+    use super::*;
 
-    //#[test]
-    //fn unexisting_url() {
-    //    let err = HAInterface::new_unsecure("i.do.not.exist", 8123, "auth_token")
-    //        .unwrap_err();
-    //    assert_eq!(err, Error::WebSocket);
-    //}
+    #[test]
+    #[should_panic]
+    fn new_unknown_host() {
+        WsApi::new_unsecure("i.do.not.exist", 8123, "auth_token").unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn new_wrong_port() {
+        WsApi::new_unsecure("localhost", 18123, "auth_token").unwrap();
+    }
 }
