@@ -1,4 +1,6 @@
 use thiserror::Error;
+use tungstenite;
+use url;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -6,8 +8,8 @@ pub enum Error {
     Authentication,
 
     #[error("websocket error")]
-    WebSocket(#[source] tungstenite::Error),
+    WebSocket(#[from] tungstenite::Error),
 
     #[error("parsing error")]
-    Parsing(String),
+    Parsing(#[from] url::ParseError),
 }
