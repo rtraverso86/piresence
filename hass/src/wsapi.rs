@@ -21,7 +21,7 @@ type WebSocket = tungstenite::protocol::WebSocket<MaybeTlsStream<TcpStream>>;
 pub struct WsApi {
     socket: WebSocket,
     auth_token: String,
-    url: String,
+    url: Url,
 }
 
 impl WsApi {
@@ -30,18 +30,17 @@ impl WsApi {
     /// token `auth_token`.
     pub fn new(secure: bool, host: &str, port: u16, auth_token: &str) -> Result<WsApi, Error> {
         let scheme = if secure { "wss" } else { "ws" };
-        let url = Url::parse(&format!("{}://{}:{}/api/websocket", scheme, host, port)).unwrap();
-        let (socket, response) = match connect(&url) {
-            Ok(t) => t,
-            Err(error) => {
-                return Err(Error::WebSocket(error));
+        let url = match Url::parse(&format!("{}://{}:{}/api/websocket", scheme, host, port)) {
+            Ok(u) => u,
+            Err(e) => {
+                return Err(Error::Parsing(format!("couldn't parse URL: {}", e)));
             },
         };
 
         Ok(WsApi {
-            socket: socket,
+            socket: connect_ws(&url)?,
             auth_token: String::from(auth_token),
-            url: String::from(url),
+            url: url,
         })
     }
 
@@ -57,10 +56,33 @@ impl WsApi {
         Self::new(true, host, port, auth_token)
     }
 
-    pub fn url(&self) -> &str {
+    pub fn connect(&mut self) -> Result<(), Error> {
+        self.socket = connect_ws(&self.url)?;
+
+        Ok(())
+    }
+
+    pub fn url(&self) -> &Url {
         &self.url
     }
 }
+
+
+fn connect_ws(url: &Url) -> Result<WebSocket, Error> {
+    let (socket, response) = match connect(url) {
+        Ok(t) => t,
+        Err(error) => {
+            return Err(Error::WebSocket(error));
+        },
+    };
+    // let (socket, response) = connect(url)?; // !!! THIS ONE DOES NOT COMPILE 
+    tracing::trace!("connect(..): {:?}", response);
+
+    //let msg = socket.read_message()
+
+    Ok(socket)
+}
+
 
 #[cfg(test)]
 mod tests {
