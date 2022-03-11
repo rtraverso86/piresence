@@ -32,11 +32,13 @@ impl WsApi {
         let scheme = if secure { "wss" } else { "ws" };
         let url = Url::parse(&format!("{}://{}:{}/api/websocket", scheme, host, port))?;
 
-        Ok(WsApi {
+        let mut ws = WsApi {
             socket: connect_ws(&url)?,
             auth_token: String::from(auth_token),
             url: url,
-        })
+        };
+        ws.authenticate()?;
+        Ok(ws)
     }
 
     /// Connects to a given `host` and `port` with the provided authentication
@@ -53,8 +55,25 @@ impl WsApi {
 
     pub fn connect(&mut self) -> Result<(), Error> {
         self.socket = connect_ws(&self.url)?;
+        Ok(())
+    }
+
+    fn authenticate(&mut self) -> Result<(), Error> {
+        let msg = self.socket.read_message().unwrap();
+        tracing::trace!("connect(..): received: {}", msg);
+
+        let msg = format!("{{\"type\": \"auth\", \"access_token\": \"{}\"}}", self.auth_token);
+        tracing::trace!("connect(..): sending: {}", msg);
+        self.socket.write_message(Message::Text(msg)).unwrap();
+
+        let msg = self.socket.read_message().unwrap();
+        tracing::trace!("connect(..): received: {}", msg);
 
         Ok(())
+    }
+
+    pub fn close(mut self) {
+        self.socket.close(Option::None).unwrap();
     }
 
     pub fn url(&self) -> &Url {
@@ -66,9 +85,6 @@ impl WsApi {
 fn connect_ws(url: &Url) -> Result<WebSocket, Error> {
     let (socket, response) = connect(url)?;
     tracing::trace!("connect(..): {:?}", response);
-
-    //let msg = socket.read_message()
-
     Ok(socket)
 }
 

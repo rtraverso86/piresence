@@ -3,6 +3,7 @@ use std::process;
 use hass;
 use piresence::CmdArgs;
 use tracing_subscriber;
+use hass::wsapi::WsApi;
 
 fn main() {
     // Initialize logging framework
@@ -10,7 +11,8 @@ fn main() {
 
     let args = CmdArgs::parse_args();
     tracing::trace!("args: {:?}", args);
-    hass::wsconnect(&args.host, args.port, &args.token);
+    //hass::wsconnect(&args.host, args.port, &args.token);
+    let ws = WsApi::new_unsecure(&args.host, args.port, &args.token).unwrap();
 
     /*
     let host = env::var("HA_HOST").expect("environment variable missing: HA_HOST");

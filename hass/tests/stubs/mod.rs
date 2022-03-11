@@ -23,6 +23,7 @@ use std::{
 use tungstenite::{
     accept_hdr,
     handshake::server::{Request, Response},
+    protocol::Message,
 };
 
 pub struct WsApiServer {
@@ -37,7 +38,7 @@ impl WsApiServer {
     pub fn new(port: u16) -> WsApiServer {
         let host = "127.0.0.1";
         let (tx, rx) = mpsc::channel();
-        let sleep_interval = Duration::from_millis(10);
+        //let sleep_interval = Duration::from_nanos(10);
         let barrier = Arc::new(Barrier::new(2));
 
         let server_barrier = Arc::clone(&barrier);
@@ -57,7 +58,7 @@ impl WsApiServer {
                             }
                             Err(TryRecvError::Empty) => {}
                         }
-                        thread::sleep(sleep_interval);
+                        //thread::sleep(sleep_interval);
                         continue;
                     },
                     Err(e) => panic!("encountered IO error: {}", e),
@@ -108,6 +109,7 @@ fn wsapi_server_handler(stream: TcpStream) {
     };
     let mut websocket = accept_hdr(stream, callback).unwrap();
 
+    websocket.write_message(Message::from("{ 'auth': 123 }")).unwrap();
     loop {
         let msg = websocket.read_message().unwrap();
         println!("Message: {}", msg);
