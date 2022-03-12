@@ -8,6 +8,7 @@ use std::net::TcpStream;
 use url::Url;
 
 use crate::error::Error;
+use crate::json::WsMessage;
 
 type WebSocket = tungstenite::protocol::WebSocket<MaybeTlsStream<TcpStream>>;
 

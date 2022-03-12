@@ -1,6 +1,7 @@
 use tungstenite::{connect, Message};
 use url::Url;
 
+mod json;
 pub mod wsapi;
 pub mod error;
 
