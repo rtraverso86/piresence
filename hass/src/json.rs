@@ -52,12 +52,12 @@ mod tests {
         log_and_check(&item, &serialized);
     }
 
-    //#[test]
-    //#[traced_test]
-    //fn wsmessage_trait_from() {
-    //    let item = AuthOk { ha_version: String::from("2022.4.1") };
-    //    let from = WsMessage::from("{'type': 'auth_ok', 'ha_version': '2022.4.1'}");
-    //    tracing::debug!("item={:?} from=%{:?}", item, from);
-    //    assert_eq!(item, from);
-    //}
+    #[test]
+    #[traced_test]
+    fn wsmessage_trait_from() {
+        let item = AuthOk { ha_version: String::from("2022.4.1") };
+        let from = WsMessage::from("{\"type\": \"auth_ok\", \"ha_version\": \"2022.4.1\"}");
+        tracing::debug!("item={:?} from=%{:?}", item, from);
+        assert_eq!(item, from);
+    }
 }
