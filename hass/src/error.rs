@@ -1,3 +1,4 @@
+use serde_json;
 use thiserror::Error;
 use tungstenite;
 use url;
@@ -10,6 +11,12 @@ pub enum Error {
     #[error("websocket error")]
     WebSocket(#[from] tungstenite::Error),
 
-    #[error("parsing error")]
-    Parsing(#[from] url::ParseError),
+    #[error("URL parsing error")]
+    UrlParsing(#[from] url::ParseError),
+
+    #[error("Serde JSON parsing error")]
+    SerdeJsonParsing(#[from] serde_json::Error),
+
+    #[error("Generic JSON parsing error")]
+    JsonParsing(&'static str),
 }
