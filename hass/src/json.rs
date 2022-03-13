@@ -220,6 +220,8 @@ mod tests {
         fn et_test(e: EventType, expected: &str) {
             let json = serde_json::to_string(&e).unwrap();
             assert_eq!(&json, &format!("\"{}\"", expected));
+            let ev : EventType = serde_json::from_str(&json).unwrap();
+            assert_eq!(e, ev);
         }
         et_test(EventType::CallService, "call_service");
         et_test(EventType::ComponentLoaded, "component_loaded");
