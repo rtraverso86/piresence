@@ -103,85 +103,49 @@ mod tests {
         assert_eq!(serialized, roundtrip);
     }
 
-    #[test]
-    #[traced_test]
-    fn msg_auth_required() {
-        let j = "{
-            \"type\": \"auth_required\",
-            \"ha_version\": \"2021.5.3\"
-        }";
-        let original = WsMessage::AuthRequired { ha_version: String::from("2021.5.3") };
-        log_and_check(&original, j);
+    macro_rules! serde_test {
+        ( $name:ident, $msg:expr, $json:expr) => {
+            #[test]
+            #[traced_test]
+            fn $name() {
+                log_and_check(&$msg, $json);
+            }
+        };
     }
 
-    #[test]
-    #[traced_test]
-    fn msg_auth() {
-        let j = "{
-            \"type\": \"auth\",
-            \"access_token\": \"ABCDEFGH\"
-        }";
-        let original = WsMessage::Auth { access_token: String::from("ABCDEFGH") };
-        log_and_check(&original, j);
-    }
+    serde_test!(msg_auth_required,
+        WsMessage::AuthRequired { ha_version: String::from("2021.5.3") },
+        "{ \"type\": \"auth_required\", \"ha_version\": \"2021.5.3\" }");
 
-    #[test]
-    #[traced_test]
-    fn msg_auth_ok() {
-        let j = "{
-            \"type\": \"auth_ok\",
-            \"ha_version\": \"2021.5.3\"
-        }";
-        let original = WsMessage::AuthOk { ha_version: String::from("2021.5.3") };
-        log_and_check(&original, j);
-    }
+    serde_test!(msg_auth,
+        WsMessage::Auth { access_token: String::from("ABCDEFGH") },
+        "{ \"type\": \"auth\", \"access_token\": \"ABCDEFGH\" }");
 
-    #[test]
-    #[traced_test]
-    fn msg_auth_invalid() {
-        let j = "{
-            \"type\": \"auth_invalid\",
-            \"message\": \"Invalid password\"
-        }";
-        let original = WsMessage::AuthInvalid { message: String::from("Invalid password") };
-        log_and_check(&original, j);
-    }
+    serde_test!(msg_auth_ok,
+        WsMessage::AuthOk { ha_version: String::from("2021.5.3") },
+        "{ \"type\": \"auth_ok\",  \"ha_version\": \"2021.5.3\" }");
 
-    #[test]
-    #[traced_test]
-    fn msg_auth_result_simple() {
-        let j = "{
-            \"id\": 18,
-            \"type\": \"result\",
-            \"success\": true,
-            \"result\": null
-          }";
-        let original = WsMessage::Result {
+    serde_test!(msg_auth_invalid,
+        WsMessage::AuthInvalid { message: String::from("Invalid password") },
+        "{\"type\": \"auth_invalid\", \"message\": \"Invalid password\"}");
+
+    serde_test!(msg_auth_result_simple,
+        WsMessage::Result {
             data: ResultBody {
                 id: 18,
                 success: true,
                 result: None,
             }
-        };
-        log_and_check(&original, j);
-    }
-
-    #[test]
-    #[traced_test]
-    fn msg_auth_result_object() {
-        let j = "{
+        },
+        "{
             \"id\": 18,
             \"type\": \"result\",
             \"success\": true,
-            \"result\": {
-                \"context\": {
-                    \"id\": \"326ef27d19415c60c492fe330945f954\",
-                    \"parent_id\": null,
-                    \"user_id\": \"31ddb597e03147118cf8d2f8fbea5553\"
-                }
-            }
-          }";
-        let original = WsMessage::Result {
+            \"result\": null
+        }");
+
+    serde_test!(msg_auth_result_object,
+        WsMessage::Result {
             data: ResultBody {
                 id: 18,
                 success: true,
@@ -193,9 +157,19 @@ mod tests {
                     }
                 }),
             }
-        };
-        log_and_check(&original, j);
-    }
+        },
+        "{
+            \"id\": 18,
+            \"type\": \"result\",
+            \"success\": true,
+            \"result\": {
+                \"context\": {
+                    \"id\": \"326ef27d19415c60c492fe330945f954\",
+                    \"parent_id\": null,
+                    \"user_id\": \"31ddb597e03147118cf8d2f8fbea5553\"
+                }
+            }
+        }");
 
     #[test]
     #[traced_test]
