@@ -71,37 +71,8 @@ pub enum EventType {
     SceneReloaded,
     ScriptStarted,
 
-    //#[serde(with = "event_type::custom")]
-    Custom {event: String},
-}
-
-mod event_type {
-    pub mod custom {
-        use serde::{Deserialize, Deserializer, Serialize, Serializer};
-        use super::super::EventType;
-
-        // This deserializer was originally written with u64 in mind. Then it was made generic by
-        // changing u64 to T everywhere and adding boundaries. Same with the serializer.
-        pub fn deserialize<'de, D>(deserializer: D) -> Result<EventType, D::Error>
-        where
-            D: Deserializer<'de>
-        {
-            let s = String::deserialize(deserializer)?;
-            Ok(EventType::Custom { event: s})
-        }
-
-        pub fn serialize<S>(value: EventType, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            if let EventType::Custom {event} = value {
-                format!("{}", event).serialize(serializer)
-            } else {
-                //Err(S::Error::custom("not an EventType::Custom"));
-                panic!("not an EventType::Custom");
-            }
-        }
-    }
+    #[serde(other)]
+    Unknown,
 }
 
 /***** TESTS *****************************************************************/
@@ -245,7 +216,13 @@ mod tests {
         et_test(EventType::AutomationTriggered, "automation_triggered");
         et_test(EventType::SceneReloaded, "scene_reloaded");
         et_test(EventType::ScriptStarted, "script_started");
-        //let custom = String::from("my_custom_event");
-        //et_test(EventType::Custom { event: custom.clone() }, &custom);
+    }
+
+    #[test]
+    #[traced_test]
+    fn event_type_unknown() {
+        let unknown = "\"an_unknown_event\"";
+        let deserialized : EventType = serde_json::from_str(&unknown).unwrap();
+        assert_eq!(&deserialized, &EventType::Unknown);
     }
 }
