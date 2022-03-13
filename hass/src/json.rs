@@ -1,6 +1,8 @@
 use serde::{Serialize, Deserialize};
 use crate::error::Error;
 
+type Id = u64;
+
 /// WebSocket message format for Home Assistant, as described at
 /// https://developers.home-assistant.io/docs/api/websocket/
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
@@ -20,13 +22,13 @@ pub enum WsMessage {
     },
 
     // Subscribe Events
-    SubscribeEvents { id: u64, event_type: String },
+    SubscribeEvents { id: Id, event_type: Option<EventType> },
 
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct ResultBody {
-    pub id: u64,
+    pub id: Id,
     pub success: bool,
     pub result: Option<ResultObject>,
 }
@@ -75,6 +77,16 @@ pub enum EventType {
     Unknown,
 }
 
+/// Serialize as JSON the given `WsMessage`.
+pub fn serialize(msg: &WsMessage) -> Result<String, Error> {
+    Ok(serde_json::to_string(&msg)?)
+}
+
+/// Deserialize from JSON a message.
+pub fn deserialize(json: &str) -> Result<WsMessage, Error> {
+    Ok(serde_json::from_str(&json)?)
+}
+
 /***** TESTS *****************************************************************/
 
 #[cfg(test)]
@@ -84,10 +96,10 @@ mod tests {
 
     fn log_and_check(val: &WsMessage, json: &str) {
         tracing::debug!("{:?} <~~> {}", val, json);
-        let deserialized : WsMessage = serde_json::from_str(&json).unwrap();
+        let deserialized : WsMessage = deserialize(&json).unwrap();
         assert_eq!(deserialized, *val);
-        let serialized = serde_json::to_string(&val).unwrap();
-        let roundtrip = serde_json::to_string(&deserialized).unwrap();
+        let serialized = serialize(&val).unwrap();
+        let roundtrip = serialize(&deserialized).unwrap();
         assert_eq!(serialized, roundtrip);
     }
 
