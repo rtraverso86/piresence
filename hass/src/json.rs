@@ -23,6 +23,26 @@ pub enum WsMessage {
 
     // Subscribe Events
     SubscribeEvents { id: Id, event_type: Option<EventType> },
+    Event {
+        #[serde(flatten)]
+        data: EventBody,
+    },
+    UnsubscribeEvents {id: Id, subscription: Id },
+    FireEvent {
+        #[serde(flatten)]
+        data: FireEventBody,
+    },
+
+    // Calling a service
+    // TODO: https://developers.home-assistant.io/docs/api/websocket/#calling-a-service
+
+    // Fetching states
+    GetStates { id: Id },
+    // TODO: this provides a list in "result", not an object
+
+    // Pings and Pongs
+    Ping { id: Id },
+    Pong { id: Id },
 
 }
 
@@ -31,6 +51,7 @@ pub struct ResultBody {
     pub id: Id,
     pub success: bool,
     pub result: Option<ResultObject>,
+    pub error: Option<ErrorObject>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
@@ -38,11 +59,45 @@ pub struct ResultObject {
     pub context: ContextObject,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug)]
 pub struct ContextObject {
     pub id: String,
     pub parent_id: Option<String>,
-    pub user_id: String,
+    pub user_id: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+pub struct ErrorObject {
+    code: String,
+    message: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+pub struct EventBody {
+    pub id: Id,
+    pub event: EventObject,
+}
+
+#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug)]
+pub struct EventObject {
+    // From subscribe_events
+    pub data: Option<serde_json::Value>,
+    pub event_type: Option<EventType>,
+    pub time_fired: Option<String>, // TODO: replace with an actual datetime
+    pub origin: Option<String>,
+
+    // From subscribe_trigger
+    pub variables: Option<serde_json::Value>,
+
+    // Both subscribe_events and susbscribe_trigger
+    pub context: ContextObject,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+pub struct FireEventBody {
+    id: Id,
+    event_type: EventType,
+    event_data: Option<serde_json::Value>,
 }
 
 /// Event types as described on the Home Assistant webiste at
@@ -135,6 +190,7 @@ mod tests {
                 id: 18,
                 success: true,
                 result: None,
+                error: None,
             }
         },
         "{
@@ -153,9 +209,10 @@ mod tests {
                     context: ContextObject {
                         id: String::from("326ef27d19415c60c492fe330945f954"),
                         parent_id: None,
-                        user_id: String::from("31ddb597e03147118cf8d2f8fbea5553")
+                        user_id: Some(String::from("31ddb597e03147118cf8d2f8fbea5553"))
                     }
                 }),
+                error: None
             }
         },
         "{
@@ -211,4 +268,58 @@ mod tests {
         let deserialized : EventType = serde_json::from_str(&unknown).unwrap();
         assert_eq!(&deserialized, &EventType::Unknown);
     }
+
+    serde_test!(msg_subscribe_events,
+        WsMessage::SubscribeEvents { id: 18, event_type: Some(EventType::StateChanged), },
+        "{ \"id\": 18, \"type\": \"subscribe_events\", \"event_type\": \"state_changed\" }");
+
+    serde_test!(msg_event,
+        WsMessage::Event { data: EventBody {
+            id: 18,
+            event: EventObject {
+                data: Some(serde_json::from_str("{\"some_field\": \"some_data\"}").unwrap()),
+                event_type: Some(EventType::StateChanged),
+                time_fired: Some(String::from("2022-01-09T10:33:04.391956+00:00")),
+                origin: Some(String::from("LOCAL")),
+                context: ContextObject {
+                    id: String::from("9b263f9e4e899819a0515a97f6ddfb47"),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+        }},
+        "{ \"id\": 18, \"type\": \"event\", \"event\": {
+            \"data\": {\"some_field\": \"some_data\"},
+            \"event_type\": \"state_changed\",
+            \"time_fired\": \"2022-01-09T10:33:04.391956+00:00\",
+            \"origin\": \"LOCAL\",
+            \"context\": {
+                \"id\": \"9b263f9e4e899819a0515a97f6ddfb47\"
+            }
+        }}");
+
+    serde_test!(msg_unsubscribe_event,
+        WsMessage::UnsubscribeEvents { id: 345, subscription: 234},
+        "{\"id\": 345, \"type\": \"unsubscribe_events\", \"subscription\": 234}");
+
+    serde_test!(msg_fire_event,
+        WsMessage::FireEvent { data: FireEventBody {
+            id: 56412,
+            event_type: EventType::HomeassistantStarted,
+            event_data: None,
+        }},
+        "{\"id\": 56412, \"type\": \"fire_event\",\"event_type\": \"homeassistant_started\"}");
+
+
+    serde_test!(msg_get_states,
+        WsMessage::GetStates { id: 78923 },
+        "{\"id\": 78923, \"type\": \"get_states\"}");
+
+    serde_test!(msg_ping,
+        WsMessage::Ping { id: 789423 },
+        "{\"id\": 789423, \"type\": \"ping\"}");
+
+    serde_test!(msg_pong,
+        WsMessage::Pong { id: 789423 },
+        "{\"id\": 789423, \"type\": \"pong\"}");
 }
