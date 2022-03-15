@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
 use crate::error::Error;
 
@@ -83,7 +84,7 @@ pub struct EventObject {
     // From subscribe_events
     pub data: Option<serde_json::Value>,
     pub event_type: Option<EventType>,
-    pub time_fired: Option<String>, // TODO: replace with an actual datetime
+    pub time_fired: Option<DateTime<Utc>>,
     pub origin: Option<String>,
 
     // From subscribe_trigger
@@ -279,7 +280,7 @@ mod tests {
             event: EventObject {
                 data: Some(serde_json::from_str("{\"some_field\": \"some_data\"}").unwrap()),
                 event_type: Some(EventType::StateChanged),
-                time_fired: Some(String::from("2022-01-09T10:33:04.391956+00:00")),
+                time_fired: Some(DateTime::from(DateTime::parse_from_rfc3339("2022-01-09T10:33:04.391956+01:00").unwrap())),
                 origin: Some(String::from("LOCAL")),
                 context: ContextObject {
                     id: String::from("9b263f9e4e899819a0515a97f6ddfb47"),
@@ -291,7 +292,7 @@ mod tests {
         "{ \"id\": 18, \"type\": \"event\", \"event\": {
             \"data\": {\"some_field\": \"some_data\"},
             \"event_type\": \"state_changed\",
-            \"time_fired\": \"2022-01-09T10:33:04.391956+00:00\",
+            \"time_fired\": \"2022-01-09T15:33:04.391956+06:00\",
             \"origin\": \"LOCAL\",
             \"context\": {
                 \"id\": \"9b263f9e4e899819a0515a97f6ddfb47\"
