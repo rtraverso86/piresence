@@ -51,13 +51,15 @@ pub enum WsMessage {
 pub struct ResultBody {
     pub id: Id,
     pub success: bool,
-    pub result: Option<ResultObject>,
+    pub result: Option<ResultType>,
     pub error: Option<ErrorObject>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
-pub struct ResultObject {
-    pub context: ContextObject,
+#[serde(untagged)]
+pub enum ResultType {
+    Object { context: ContextObject },
+    Array(Vec<serde_json::Value>),
 }
 
 #[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug)]
@@ -189,7 +191,7 @@ mod tests {
         WsMessage::Result {
             data: ResultBody {
                 id: 18,
-                success: true,
+                success: false,
                 result: None,
                 error: None,
             }
@@ -197,7 +199,7 @@ mod tests {
         "{
             \"id\": 18,
             \"type\": \"result\",
-            \"success\": true,
+            \"success\": false,
             \"result\": null
         }");
 
@@ -206,7 +208,7 @@ mod tests {
             data: ResultBody {
                 id: 18,
                 success: true,
-                result: Some(ResultObject {
+                result: Some(ResultType::Object {
                     context: ContextObject {
                         id: String::from("326ef27d19415c60c492fe330945f954"),
                         parent_id: None,
@@ -228,6 +230,35 @@ mod tests {
                 }
             }
         }");
+
+        serde_test!(msg_auth_result_array,
+            WsMessage::Result {
+                data: ResultBody {
+                    id: 18,
+                    success: true,
+                    result: Some(ResultType::Array(vec![
+                        serde_json::from_str("{\"some_field\": \"some_data\"}").unwrap(),
+                        serde_json::from_str("{\"some_field\": \"some_other_data\"}").unwrap()
+                    ])),/*
+
+                        context: ContextObject {
+                            id: String::from("326ef27d19415c60c492fe330945f954"),
+                            parent_id: None,
+                            user_id: Some(String::from("31ddb597e03147118cf8d2f8fbea5553"))
+                        }
+                    }),*/
+                    error: None
+                }
+            },
+            "{
+                \"id\": 18,
+                \"type\": \"result\",
+                \"success\": true,
+                \"result\": [
+                    {\"some_field\": \"some_data\"},
+                    {\"some_field\": \"some_other_data\"}
+                ]
+            }");
 
     #[test]
     #[traced_test]
