@@ -10,9 +10,10 @@ fn main() {
     tracing_subscriber::fmt::init();
 
     let args = CmdArgs::parse_args();
-    tracing::trace!("args: {:?}", args);
+    tracing::trace!("commandline args: {:?}", args);
     //hass::wsconnect(&args.host, args.port, &args.token);
     let ws = WsApi::new_unsecure(&args.host, args.port, &args.token).unwrap();
+    ws.close();
 
     /*
     let host = env::var("HA_HOST").expect("environment variable missing: HA_HOST");

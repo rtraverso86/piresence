@@ -8,7 +8,7 @@ use std::net::TcpStream;
 use url::Url;
 
 use crate::error::Error;
-use crate::json::WsMessage;
+use crate::json::{serialize, deserialize, WsMessage};
 
 type WebSocket = tungstenite::protocol::WebSocket<MaybeTlsStream<TcpStream>>;
 
@@ -59,20 +59,6 @@ impl WsApi {
         Ok(())
     }
 
-    fn authenticate(&mut self) -> Result<(), Error> {
-        let msg = self.socket.read_message().unwrap();
-        tracing::trace!("connect(..): received: {}", msg);
-
-        let msg = format!("{{\"type\": \"auth\", \"access_token\": \"{}\"}}", self.auth_token);
-        tracing::trace!("connect(..): sending: {}", msg);
-        self.socket.write_message(Message::Text(msg)).unwrap();
-
-        let msg = self.socket.read_message().unwrap();
-        tracing::trace!("connect(..): received: {}", msg);
-
-        Ok(())
-    }
-
     pub fn close(mut self) {
         self.socket.close(Option::None).unwrap();
     }
@@ -80,6 +66,50 @@ impl WsApi {
     pub fn url(&self) -> &Url {
         &self.url
     }
+
+    fn read_message(&mut self) -> Result<WsMessage, Error> {
+        let json = self.socket.read_message().unwrap();
+        tracing::trace!("connect(..): received: {}", &json);
+        deserialize(&json.into_text().unwrap())
+    }
+
+    fn write_message(&mut self, msg: &WsMessage) -> Result<(), Error> {
+        let msg = serialize(&msg)?;
+        tracing::trace!("connect(..): sending: {}", &msg);
+        self.socket.write_message(Message::Text(msg))?;
+        Ok(())
+    }
+
+    fn authenticate(&mut self) -> Result<(), Error> {
+        match self.read_message()? {
+            WsMessage::AuthRequired { ha_version } => {
+                tracing::info!("authentication: received auth_required message from HA {}", &ha_version);
+            },
+            u => {
+                return Err(Error::UnexpectedMessage(u));
+            }
+        }
+
+        let msg = WsMessage::Auth { access_token: String::from(&self.auth_token) };
+        self.write_message(&msg)?;
+        tracing::info!("authentication: auth_token sent");
+
+        match self.read_message()? {
+            WsMessage::AuthOk { .. } => {
+                tracing::info!("authentication: successful");
+                Ok(())
+            },
+            WsMessage::AuthInvalid {message} => {
+                tracing::error!("authentication: failed ({})", message);
+                Err(Error::Authentication(message))
+            },
+            u => {
+                tracing::error!("authentication: failed for unexpected message: {:?}", u);
+                Err(Error::UnexpectedMessage(u))
+            },
+        }
+    }
+
 }
 
 
