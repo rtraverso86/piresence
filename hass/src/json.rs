@@ -71,8 +71,8 @@ pub struct ContextObject {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct ErrorObject {
-    code: String,
-    message: String,
+    pub code: String,
+    pub message: String,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
@@ -98,14 +98,14 @@ pub struct EventObject {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct FireEventBody {
-    id: Id,
-    event_type: EventType,
-    event_data: Option<serde_json::Value>,
+    pub id: Id,
+    pub event_type: EventType,
+    pub event_data: Option<serde_json::Value>,
 }
 
 /// Event types as described on the Home Assistant webiste at
 /// https://www.home-assistant.io/docs/configuration/events/
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum EventType {
     CallService,
