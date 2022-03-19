@@ -23,4 +23,7 @@ pub enum Error {
 
     #[error("unexpected message from HA server")]
     UnexpectedMessage(WsMessage),
+
+    #[error("HA sent error code and message in response to a request")]
+    ProtocolError(String, String)
 }
