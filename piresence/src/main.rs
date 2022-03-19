@@ -1,6 +1,6 @@
 use std::env;
 use std::process;
-use hass;
+use hass::{self, json};
 use piresence::CmdArgs;
 use tracing_subscriber;
 use hass::wsapi::WsApi;
@@ -12,7 +12,9 @@ fn main() {
     let args = CmdArgs::parse_args();
     tracing::trace!("commandline args: {:?}", args);
     //hass::wsconnect(&args.host, args.port, &args.token);
-    let ws = WsApi::new_unsecure(&args.host, args.port, &args.token).unwrap();
+    let mut ws = WsApi::new_unsecure(&args.host, args.port, &args.token).unwrap();
+    ws.subscribe_events(Some(json::EventType::StateChanged));
+    ws.receive_events();
     ws.close();
 
     /*
