@@ -136,6 +136,19 @@ pub enum EventType {
     Unknown,
 }
 
+impl Default for EventType {
+    fn default() -> Self { EventType::Unknown }
+}
+
+impl fmt::Display for EventType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match serde_json::to_string(&self) {
+            Ok(s) => write!(f, "{}", s),
+            Err(_) => Err(fmt::Error),
+        }
+    }
+}
+
 /// Serialize as JSON the given `WsMessage`.
 pub fn serialize(msg: &WsMessage) -> Result<String, Error> {
     Ok(serde_json::to_string(&msg)?)
