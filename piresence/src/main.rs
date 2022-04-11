@@ -13,7 +13,7 @@ fn main() {
     tracing::trace!("commandline args: {:?}", args);
     //hass::wsconnect(&args.host, args.port, &args.token);
     let mut ws = WsApi::new_unsecure(&args.host, args.port, &args.token).unwrap();
-    ws.subscribe_events(Some(json::EventType::StateChanged));
+    ws.subscribe_event(Some(json::EventType::StateChanged));
     ws.receive_events();
     ws.close();
 

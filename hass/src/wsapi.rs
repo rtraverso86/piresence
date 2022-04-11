@@ -8,10 +8,9 @@ use std::net::TcpStream;
 use url::Url;
 
 use crate::error::Error;
-use crate::json::{self, WsMessage};
+use crate::json::{self, Id, WsMessage};
 
 type WebSocket = tungstenite::protocol::WebSocket<MaybeTlsStream<TcpStream>>;
-
 
 
 /// Home Assistant Interface
@@ -112,12 +111,12 @@ impl WsApi {
         }
     }
 
-    fn get_next_id(&mut self) -> u64 {
+    fn get_next_id(&mut self) -> Id {
         self.last_id += 1;
         self.last_id
     }
 
-    pub fn subscribe_events(&mut self, event_type: Option<json::EventType>) -> Result<(), Error> {
+    pub fn subscribe_event(&mut self, event_type: Option<json::EventType>) -> Result<Id, Error> {
         let id = self.get_next_id(); // TODO: we should check this id in next messages later
         let sub_msg = WsMessage::SubscribeEvents {
             id: id,
@@ -132,7 +131,7 @@ impl WsApi {
                 } else {
                     tracing::info!("subscribe_events: successful");
                 }
-                Ok(())
+                Ok(id)
             },
             WsMessage::Result { data: json::ResultBody { success: false, error, .. } } => {
                 if let Some(e) = error {
@@ -150,6 +149,19 @@ impl WsApi {
         }
     }
 
+    pub fn subscribe_events(&mut self, event_types: &[json::EventType]) -> Result<Vec<Id>, (usize, Error)> {
+        let mut ids : Vec<Id> = Vec::with_capacity(event_types.len());
+        for (i, event_type) in event_types.iter().enumerate() {
+            match self.subscribe_event(Some(*event_type)) {
+                Ok(id) => ids.push(id),
+                Err(e) => {
+                    return Err((i, e));
+                }
+            }
+        }
+        Ok(ids)
+    }
+
     pub fn receive_events(&mut self) -> Result<(), Error> {
         loop {
             let msg = self.read_message()?;
@@ -158,6 +170,7 @@ impl WsApi {
     }
 
 }
+
 
 
 fn connect_ws(url: &Url) -> Result<WebSocket, Error> {

@@ -5,7 +5,7 @@ pub mod json;
 pub mod wsapi;
 pub mod error;
 
-use wsapi::WsApi;
+pub use wsapi::WsApi;
 
 pub fn wsconnect(host: &str, port: u16, token: &str) {
 

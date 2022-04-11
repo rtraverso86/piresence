@@ -1,8 +1,9 @@
+use std::fmt;
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
 use crate::error::Error;
 
-type Id = u64;
+pub type Id = u64;
 
 /// WebSocket message format for Home Assistant, as described at
 /// https://developers.home-assistant.io/docs/api/websocket/
