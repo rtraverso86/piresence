@@ -68,7 +68,7 @@ impl WsApi {
         &self.url
     }
 
-    fn read_message(&mut self) -> Result<WsMessage, Error> {
+    pub fn read_message(&mut self) -> Result<WsMessage, Error> {
         let json = self.socket.read_message().unwrap();
         tracing::trace!("connect(..): received: {}", &json);
         json::deserialize(&json.into_text().unwrap())

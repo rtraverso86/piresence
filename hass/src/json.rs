@@ -132,6 +132,9 @@ pub enum EventType {
     SceneReloaded,
     ScriptStarted,
 
+    HaevloStart,
+    HaevloStop,
+
     #[serde(other)]
     Unknown,
 }
