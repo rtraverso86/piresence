@@ -1,11 +1,11 @@
 
 use hass::{self};
-use haevlo;
 use tracing_subscriber;
 use hass::wsapi::WsApi;
 use hass::json::{WsMessage, EventType};
 
-fn main() {
+#[tokio::main]
+async fn main() {
     // Initialize logging framework
     tracing_subscriber::fmt::init();
 

@@ -1,6 +1,6 @@
 use serde_json;
 use thiserror::Error;
-use tungstenite;
+use tokio_tungstenite::tungstenite;
 use url;
 use crate::json::WsMessage;
 
