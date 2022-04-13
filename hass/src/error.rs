@@ -6,24 +6,24 @@ use crate::json::WsMessage;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("authentication failed")]
+    #[error("authentication failed: {0}")]
     Authentication(String),
 
-    #[error("websocket error")]
+    #[error("websocket error: {0}")]
     WebSocket(#[from] tungstenite::Error),
 
-    #[error("URL parsing error")]
+    #[error("URL parsing error: {0}")]
     UrlParsing(#[from] url::ParseError),
 
-    #[error("Serde/JSON parsing error")]
+    #[error("Serde/JSON parsing error: {0}")]
     SerdeJsonParsing(#[from] serde_json::Error),
 
-    #[error("generic JSON parsing error")]
+    #[error("generic JSON parsing error: {0}")]
     JsonParsing(&'static str),
 
-    #[error("unexpected message from HA server")]
+    #[error("unexpected message from HA server: {0:?}")]
     UnexpectedMessage(WsMessage),
 
-    #[error("HA sent error code and message in response to a request")]
-    ProtocolError(String, String)
+    #[error("HA sent error code {0}: {1}")]
+    ProtocolError(String, String),
 }

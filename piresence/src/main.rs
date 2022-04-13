@@ -1,5 +1,3 @@
-use std::env;
-use std::process;
 use hass::{self, json};
 use piresence::CmdArgs;
 use tracing_subscriber;
