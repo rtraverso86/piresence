@@ -46,9 +46,9 @@ pub fn exit_error(err: Error, when: &str) {
     process::exit(-1);
 }
 
-pub fn register_events(ws: &mut WsApi) -> Result<Vec<Id>, (Error, String)> {
+pub async fn register_events(ws: &mut WsApi) -> Result<Vec<Id>, (Error, String)> {
     let events = [EventType::HaevloStart, EventType::HaevloStop];
-    ws.subscribe_events(&events).map_err(|(idx, err)| {
+    ws.subscribe_events(&events).await.map_err(|(idx, err)| {
         (
             err,
             format!("registering to event {}", events[idx]),

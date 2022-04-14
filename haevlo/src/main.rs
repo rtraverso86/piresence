@@ -12,7 +12,7 @@ async fn main() {
     let args = haevlo::CmdArgs::parse_args();
     tracing::debug!("commandline args: {:?}", args);
     
-    let mut ws = match WsApi::new_unsecure(&args.host, args.port, &args.token) {
+    let mut ws = match WsApi::new_unsecure(&args.host, args.port, &args.token).await {
         Ok(ws) => ws,
         Err(e) => {
             return haevlo::exit_error(e, "connecting");
@@ -20,13 +20,13 @@ async fn main() {
     };
 
     if args.use_events {
-        if let Err((e, when)) = haevlo::register_events(&mut ws) {
+        if let Err((e, when)) = haevlo::register_events(&mut ws).await {
             return haevlo::exit_error(e, &when);
         }
     }
 
     loop {
-        match ws.read_message() {
+        match ws.read_message().await {
             Ok(msg) => {
                 match msg {
                     WsMessage::Event { data } => {
@@ -39,11 +39,11 @@ async fn main() {
                 };
             },
             Err(e) => {
-                ws.close();
+                ws.close().await;
                 return haevlo::exit_error(e, "receiving messages from HA")
             }
         }
     }
 
-    ws.close();
+    ws.close().await;
 }
