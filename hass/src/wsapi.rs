@@ -1,17 +1,22 @@
-use tokio_tungstenite::tungstenite;
+
+use futures_util::{SinkExt, StreamExt};
+use tokio_tungstenite::{
+    self,
+    tungstenite,
+    connect_async,
+    MaybeTlsStream,
+};
 use tungstenite::{
-    connect,
     Message,
-    stream::{MaybeTlsStream},
 };
 
-use std::net::TcpStream;
+use tokio::net::TcpStream;
 use url::Url;
 
 use crate::error::Error;
 use crate::json::{self, Id, WsMessage};
 
-type WebSocket = tungstenite::protocol::WebSocket<MaybeTlsStream<TcpStream>>;
+type WebSocketStream = tokio_tungstenite::WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 
 /// Home Assistant Interface
@@ -20,7 +25,7 @@ type WebSocket = tungstenite::protocol::WebSocket<MaybeTlsStream<TcpStream>>;
 /// [WebSocket interface](https://developers.home-assistant.io/docs/api/websocket).
 #[derive(Debug)]
 pub struct WsApi {
-    socket: WebSocket,
+    socket: WebSocketStream,
     auth_token: String,
     url: Url,
     last_id: u64,
@@ -30,60 +35,70 @@ impl WsApi {
 
     /// Connects to a given `host` and `port` with the provided authentication
     /// token `auth_token`.
-    pub fn new(secure: bool, host: &str, port: u16, auth_token: &str) -> Result<WsApi, Error> {
+    pub async fn new(secure: bool, host: &str, port: u16, auth_token: &str) -> Result<WsApi, Error> {
         let scheme = if secure { "wss" } else { "ws" };
         let url = Url::parse(&format!("{}://{}:{}/api/websocket", scheme, host, port))?;
 
         let mut ws = WsApi {
-            socket: connect_ws(&url)?,
+            socket: connect_ws(&url).await?,
             auth_token: String::from(auth_token),
             url: url,
             last_id: 0,
         };
-        ws.authenticate()?;
+        ws.authenticate().await?;
         Ok(ws)
     }
 
     /// Connects to a given `host` and `port` with the provided authentication
     /// token `auth_token`.
-    pub fn new_unsecure(host: &str, port: u16, auth_token: &str) -> Result<WsApi, Error> {
-        Self::new(false, host, port, auth_token)
+    pub async fn new_unsecure(host: &str, port: u16, auth_token: &str) -> Result<WsApi, Error> {
+        Self::new(false, host, port, auth_token).await
     }
 
     /// Connects to a given `host` and `port` with the provided authentication
     /// token `auth_token`.
-    pub fn new_secure(host: &str, port: u16, auth_token: &str) -> Result<WsApi, Error> {
-        Self::new(true, host, port, auth_token)
+    pub async fn new_secure(host: &str, port: u16, auth_token: &str) -> Result<WsApi, Error> {
+        Self::new(true, host, port, auth_token).await
     }
 
-    pub fn connect(&mut self) -> Result<(), Error> {
-        self.socket = connect_ws(&self.url)?;
+    pub async fn connect(&mut self) -> Result<(), Error> {
+        self.socket = connect_ws(&self.url).await?;
         Ok(())
     }
 
-    pub fn close(mut self) {
-        self.socket.close(Option::None).unwrap();
+    pub async fn close(mut self) {
+        self.socket.close(Option::None).await.unwrap();
     }
 
     pub fn url(&self) -> &Url {
         &self.url
     }
 
-    pub fn read_message(&mut self) -> Result<WsMessage, Error> {
-        let json = self.socket.read_message().unwrap();
-        tracing::trace!("connect(..): received: {}", &json);
-        json::deserialize(&json.into_text().unwrap())
+    pub async fn read_message(&mut self) -> Result<WsMessage, Error> {
+        let nxt = self.socket.next().await;
+        match nxt {
+            Some(nxt) => {
+                let json = nxt?;
+                tracing::trace!("read_message(..): received: {}", &json);
+                if json.is_text() {
+                    json::deserialize(&json.into_text().unwrap())
+                } else {
+                    Err(Error::UnexpectedBinaryMessage)
+                }
+            },
+            None => Err(Error::NoNextMessage)
+        }
     }
 
-    fn write_message(&mut self, msg: &WsMessage) -> Result<(), Error> {
+    async fn write_message(&mut self, msg: &WsMessage) -> Result<(), Error> {
         let msg = json::serialize(&msg)?;
-        tracing::trace!("connect(..): sending: {}", &msg);
-        self.socket.write_message(Message::Text(msg))?;
+        tracing::trace!("write_message(..): sending: {}", &msg);
+        self.socket.send(Message::Text(msg)).await?;
         Ok(())
     }
 
-    fn authenticate(&mut self) -> Result<(), Error> {
-        match self.read_message()? {
+    async fn authenticate(&mut self) -> Result<(), Error> {
+        match self.read_message().await? {
             WsMessage::AuthRequired { ha_version } => {
                 tracing::info!("authentication: received auth_required message from HA {}", &ha_version);
             },
@@ -93,10 +108,10 @@ impl WsApi {
         }
 
         let msg = WsMessage::Auth { access_token: String::from(&self.auth_token) };
-        self.write_message(&msg)?;
+        self.write_message(&msg).await?;
         tracing::info!("authentication: auth_token sent");
 
-        match self.read_message()? {
+        match self.read_message().await? {
             WsMessage::AuthOk { .. } => {
                 tracing::info!("authentication: successful");
                 Ok(())
@@ -117,15 +132,15 @@ impl WsApi {
         self.last_id
     }
 
-    pub fn subscribe_event(&mut self, event_type: Option<json::EventType>) -> Result<Id, Error> {
+    pub async fn subscribe_event(&mut self, event_type: Option<json::EventType>) -> Result<Id, Error> {
         let id = self.get_next_id(); // TODO: we should check this id in next messages later
         let sub_msg = WsMessage::SubscribeEvents {
             id: id,
             event_type: event_type
         };
-        self.write_message(&sub_msg)?;
+        self.write_message(&sub_msg).await?;
 
-        match self.read_message()? {
+        match self.read_message().await? {
             WsMessage::Result { data: json::ResultBody { success: true, .. } } => {
                 if let Some(t) = event_type {
                     tracing::info!("subscribe_events: {:?}: successful", t);
@@ -150,10 +165,10 @@ impl WsApi {
         }
     }
 
-    pub fn subscribe_events(&mut self, event_types: &[json::EventType]) -> Result<Vec<Id>, (usize, Error)> {
+    pub async fn subscribe_events(&mut self, event_types: &[json::EventType]) -> Result<Vec<Id>, (usize, Error)> {
         let mut ids : Vec<Id> = Vec::with_capacity(event_types.len());
         for (i, event_type) in event_types.iter().enumerate() {
-            match self.subscribe_event(Some(*event_type)) {
+            match self.subscribe_event(Some(*event_type)).await {
                 Ok(id) => ids.push(id),
                 Err(e) => {
                     return Err((i, e));
@@ -163,9 +178,9 @@ impl WsApi {
         Ok(ids)
     }
 
-    pub fn receive_events(&mut self) -> Result<(), Error> {
+    pub async fn receive_events(&mut self) -> Result<(), Error> {
         loop {
-            let msg = self.read_message()?;
+            let msg = self.read_message().await?;
             tracing::info!("receive_events: {:?}", &msg);
         }
     }
@@ -174,9 +189,9 @@ impl WsApi {
 
 
 
-fn connect_ws(url: &Url) -> Result<WebSocket, Error> {
-    let (socket, response) = connect(url)?;
-    tracing::trace!("connect(..): {:?}", response);
+async fn connect_ws(url: &Url) -> Result<WebSocketStream, Error> {
+    let (socket, response) = connect_async(url).await?;
+    tracing::trace!("connect({}): {:?}", url, response);
     Ok(socket)
 }
 
@@ -185,15 +200,15 @@ fn connect_ws(url: &Url) -> Result<WebSocket, Error> {
 mod tests {
     use super::*;
 
-    #[test]
+    #[tokio::test]
     #[should_panic]
-    fn new_unknown_host() {
-        WsApi::new_unsecure("i.do.not.exist", 8123, "auth_token").unwrap();
+    async fn new_unknown_host() {
+        WsApi::new_unsecure("i.do.not.exist", 8123, "auth_token").await.unwrap();
     }
 
-    #[test]
+    #[tokio::test]
     #[should_panic]
-    fn new_wrong_port() {
-        WsApi::new_unsecure("localhost", 18123, "auth_token").unwrap();
+    async fn new_wrong_port() {
+        WsApi::new_unsecure("localhost", 18123, "auth_token").await.unwrap();
     }
 }
