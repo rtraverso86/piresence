@@ -66,7 +66,7 @@ impl WsApi {
         Ok(())
     }
 
-    pub async fn close(mut self) {
+    pub async fn close(&mut self) {
         self.socket.close(Option::None).await.unwrap();
     }
 
@@ -183,6 +183,15 @@ impl WsApi {
             let msg = self.read_message().await?;
             tracing::info!("receive_events: {:?}", &msg);
         }
+    }
+
+}
+
+impl Drop for WsApi {
+
+    #[tokio::main(flavor = "current_thread")]
+    async fn drop(&mut self) {
+        self.close().await;
     }
 
 }

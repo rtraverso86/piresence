@@ -45,5 +45,4 @@ async fn main() {
         }
     }
 
-    ws.close().await;
 }
