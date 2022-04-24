@@ -4,3 +4,11 @@ pub mod error;
 
 pub use wsapi::WsApi;
 pub use json::WsMessage;
+
+// Re-exports
+pub use url;
+pub use serde;
+pub use serde_json;
+
+#[cfg(feature = "serde_yaml")]
+pub use serde_yaml;

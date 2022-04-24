@@ -8,7 +8,7 @@ description = """\
     """
 
 [dependencies]
-hass = { path = "../hass" }
+hass = { path = "../hass", features = ["serde_yaml"] }
 clap = { version = "3.1.2", features = ["derive"] }
 #ctrlc = { version = "3.0", features = ["termination"] }
 tokio = { version = "1.17", features = ["full"] }
