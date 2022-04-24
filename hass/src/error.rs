@@ -4,6 +4,8 @@ use tokio_tungstenite::tungstenite;
 use url;
 use crate::json::WsMessage;
 
+pub type Result<T> = core::result::Result<T, Error>;
+
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("authentication failed: {0}")]
