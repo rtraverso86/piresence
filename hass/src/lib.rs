@@ -1,3 +1,5 @@
+mod sync;
+
 pub mod json;
 pub mod wsapi;
 pub mod error;

@@ -1,5 +1,4 @@
 use std::sync::{
-    atomic::{self, AtomicU64},
     Arc,
 };
 use std::time::Duration;
@@ -24,6 +23,7 @@ use url::Url;
 
 use crate::error::{Error, Result};
 use crate::json::{self, Id, WsMessage};
+use crate::sync::AtomicId;
 
 
 type WebSocketStream = tokio_tungstenite::WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -49,7 +49,7 @@ pub struct WsApi {
     tx: mpsc::Sender<Command>,
 
     /// Next available identifier, to be used for `WsMessage` requests
-    id: Arc<AtomicU64>,
+    id: Arc<AtomicId>,
 }
 
 impl WsApi {
@@ -63,7 +63,7 @@ impl WsApi {
 
         //? What to do with you? I need to guarantee all new messages sent requiring IDs are
         //? properly taking new ids from here.
-        let id = Arc::new(AtomicU64::new(1));
+        let id = Arc::new(AtomicId::new());
 
         let id2 = id.clone();
         let socket = connect_ws(&url).await?;
@@ -101,7 +101,7 @@ impl WsApi {
     }
 
     // Consumes `self` closing all connections and resources.
-    pub async fn close(mut self) -> Result<()> {
+    pub async fn close(self) -> Result<()> {
         self.tx.send(Command::Quit).await;
         // TODO: wait for confirmation (*1)
         Ok(())
@@ -112,20 +112,16 @@ impl WsApi {
 struct WsApiMessenger {
     rx: mpsc::Receiver<Command>,
     socket: WebSocketStream,
-    id: Arc<AtomicU64>,
+    id: Arc<AtomicId>,
 }
 
 impl WsApiMessenger {
-    fn new(rx: mpsc::Receiver<Command>, socket: WebSocketStream, id: Arc<AtomicU64>) -> WsApiMessenger {
+    fn new(rx: mpsc::Receiver<Command>, socket: WebSocketStream, id: Arc<AtomicId>) -> WsApiMessenger {
         WsApiMessenger {
             rx,
             socket,
             id,
         }
-    }
-
-    fn next_id(&mut self) -> Id {
-        self.id.fetch_add(1, atomic::Ordering::SeqCst)
     }
 
     async fn send(&mut self, msg: WsMessage) -> Result<()> {
@@ -136,7 +132,7 @@ impl WsApiMessenger {
     }
 
     async fn send_ping(&mut self) -> Result<()> {
-        let msg = WsMessage::Ping { id: self.next_id() };
+        let msg = WsMessage::Ping { id: self.id.next() };
         self.send(msg).await?;
         Ok(())
     }
