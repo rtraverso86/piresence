@@ -206,6 +206,30 @@ async fn connect_ws(url: &Url) -> Result<WebSocketStream> {
 }
 
 
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn new_unknown_host() {
+        match WsApi::new_unsecure("i.do.not.exist", 8123, "auth_token").await {
+            Err(Error::WebSocket(_)) => (), // OK
+            x => panic!("unexpected result: {:?}", x),
+        }
+    }
+
+    #[tokio::test]
+    async fn new_wrong_port() {
+        match WsApi::new_unsecure("localhost", 18123, "auth_token").await {
+            Err(Error::WebSocket(_)) => (), // OK
+            x => panic!("unexpected result: {:?}", x),
+        }
+    }
+}
+
+
 // TODO -- pialla tutto sotto questa riga -- TODO //
 
 /// Home Assistant Interface
@@ -335,24 +359,3 @@ impl WsApi2 {
 
 }
 
-
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    #[should_panic]
-    async fn new_unknown_host() {
-        //TODO: update test
-        ////WsApi2::new_unsecure("i.do.not.exist", 8123, "auth_token").await.unwrap();
-    }
-
-    #[tokio::test]
-    #[should_panic]
-    async fn new_wrong_port() {
-        //TODO: update test
-        ////WsApi2::new_unsecure("localhost", 18123, "auth_token").await.unwrap();
-    }
-}
