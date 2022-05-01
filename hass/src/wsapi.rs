@@ -100,6 +100,23 @@ impl WsApi {
         &self.url
     }
 
+    // Writes the given `msg` into the queue of messages to be sent to HA.
+    pub async fn send(&self, msg: WsMessage) -> Result<()> {
+        // TODO: produce id internally (*3)
+        match self.tx.send(Command::Message(msg)).await {
+            Ok(()) => Ok(()),
+            Err(mpsc::error::SendError(cmd)) => match cmd {
+                Command::Message(msg) => Err(Error::SendError(msg)),
+                _ => unreachable!()
+            },
+        }
+    }
+
+    // TODO: produce id internally, do not expose next_id() (*3)
+    pub fn next_id(&self) -> Id {
+        self.id.next()
+    }
+
     // Consumes `self` closing all connections and resources.
     pub async fn close(self) -> Result<()> {
         self.tx.send(Command::Quit).await;

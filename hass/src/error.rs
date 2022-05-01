@@ -34,4 +34,7 @@ pub enum Error {
 
     #[error("Next message not found")]
     NoNextMessage,
+
+    #[error("Could not send message: {0}")]
+    SendError(WsMessage),
 }
