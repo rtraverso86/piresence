@@ -23,7 +23,7 @@ use url::Url;
 
 use crate::error::{Error, Result};
 use crate::json::{self, Id, WsMessage};
-use crate::sync::AtomicId;
+use crate::sync::{atomic::AtomicId};
 
 
 type WebSocketStream = tokio_tungstenite::WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -183,26 +183,33 @@ async fn messenger_task(mut messenger: WsApiMessenger) -> Result<()> {
 
     loop {
         tokio::select! {
+            // Keepalive ping event - HA will close the connection should it stop receiving messages
             _ = keepalive.tick() => {
                 messenger.send_ping().await?;
             },
 
+            // Event on the command channel
             cmd = messenger.rx.recv() => match cmd {
+                // A new command has been sent via the API
                 Some(cmd) => match cmd {
+                    // Send a new message to HA
                     Command::Message(msg) => {
                         messenger.send(msg).await?;
                     },
+                    // Explicit termination request
                     Command::Quit => {
                         // TODO: handle termination request (*1)
                         done = true;
                     },
                 },
+                // Termination due to end of commands
                 None => {
                     //TODO: handle channel closed (*1)
                     done = true;
                 }
             },
 
+            // Event on the HA socket
             rcv = messenger.socket.next() => match rcv {
                 Some(rcv) => {
                     // TODO: dispatch received message (*2)

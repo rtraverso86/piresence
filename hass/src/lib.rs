@@ -1,8 +1,10 @@
-mod sync;
+pub mod sync;
 
 pub mod json;
 pub mod wsapi;
 pub mod error;
+
+// Convenience exports
 
 pub use wsapi::WsApi;
 pub use json::WsMessage;
