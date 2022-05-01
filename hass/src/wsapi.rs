@@ -111,7 +111,6 @@ impl WsApi {
             Err(mpsc::error::SendError(cmd)) => Err(match cmd {
                 Command::Message(msg) => Error::SendError(msg),
                 cmd => Error::InternalError {
-                    ////cause: anyhow::anyhow!("Sending error for: {:?}", cmd)
                     cause: anyhow!(mpsc::error::SendError(cmd))
                 },
             }),
@@ -145,12 +144,12 @@ impl WsApi {
     }
 }
 
-trait FromReply<T> {
-    fn receiver_or_error(&self, rx: mpsc::Receiver<T>) -> Result<mpsc::Receiver<T>>;
+trait FromReply {
+    fn receiver_or_error(&self, rx: mpsc::Receiver<Self>) -> Result<mpsc::Receiver<Self>>;
 }
 
-impl<T> FromReply<T> for WsMessage {
-    fn receiver_or_error(&self, rx: mpsc::Receiver<T>) -> Result<mpsc::Receiver<T>> {
+impl FromReply for WsMessage {
+    fn receiver_or_error(&self, rx: mpsc::Receiver<Self>) -> Result<mpsc::Receiver<Self>> {
         match self {
             WsMessage::Result { data: json::ResultBody { success: true, .. } } => {
                 Ok(rx)
