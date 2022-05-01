@@ -133,7 +133,7 @@ impl WsApi {
             .await
             .ok_or(Error::InternalError { cause: anyhow!("missing response")})?;
 
-        reply.receiver_or_error(rx)
+        receiver_or_error(reply, rx)
     }
 
     // Consumes `self` closing all connections and resources.
@@ -144,26 +144,19 @@ impl WsApi {
     }
 }
 
-trait FromReply {
-    fn receiver_or_error(&self, rx: mpsc::Receiver<Self>) -> Result<mpsc::Receiver<Self>>;
-}
-
-impl FromReply for WsMessage {
-    fn receiver_or_error(&self, rx: mpsc::Receiver<Self>) -> Result<mpsc::Receiver<Self>> {
-        match self {
-            WsMessage::Result { data: json::ResultBody { success: true, .. } } => {
-                Ok(rx)
-            },
-            WsMessage::Result { data: json::ResultBody { success: false, error, .. } } => {
-                Err(Error::from(*error))
-            },
-            u => {
-                Err(Error::UnexpectedMessage(*u))
-            },
-        }
+fn receiver_or_error(reply: WsMessage, rx: mpsc::Receiver<WsMessage>) -> Result<mpsc::Receiver<WsMessage>> {
+    match reply {
+        WsMessage::Result { data: json::ResultBody { success: true, .. } } => {
+            Ok(rx)
+        },
+        WsMessage::Result { data: json::ResultBody { success: false, error, .. } } => {
+            Err(Error::from(error))
+        },
+        u => {
+            Err(Error::UnexpectedMessage(u))
+        },
     }
 }
-
 
 struct WsApiMessenger {
     rx: mpsc::Receiver<Command>,
@@ -234,7 +227,7 @@ async fn messenger_task(mut messenger: WsApiMessenger) -> Result<()> {
                         // Send a new message to HA
                         messenger.send(msg).await?;
                     },
-                    Command::Register(id, registered) {
+                    Command::Register(id, registered) => {
                         // TODO: handle response registration
                         unimplemented!()
                     },
