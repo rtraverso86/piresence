@@ -1,8 +1,9 @@
+use anyhow;
 use serde_json;
 use thiserror::Error;
 use tokio_tungstenite::tungstenite;
 use url;
-use crate::json::WsMessage;
+use crate::json::{WsMessage, ErrorObject};
 
 pub type Result<T> = core::result::Result<T, Error>;
 
@@ -37,4 +38,22 @@ pub enum Error {
 
     #[error("Could not send message: {0}")]
     SendError(WsMessage),
+
+    #[error("Could not subscribe")]
+    SubscribeError,
+
+    #[error("Internal error: {cause:?}")]
+    InternalError {
+        cause: anyhow::Error,
+    },
+}
+
+impl From<Option<ErrorObject>> for Error {
+    fn from(err: Option<ErrorObject>) -> Self {
+        if let Some(e) = err {
+            Error::ProtocolError(e.code, e.message)
+        } else {
+            Error::ProtocolError(String::from("None"), String::from("None"))
+        }
+    }
 }

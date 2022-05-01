@@ -3,6 +3,7 @@ use std::sync::{
 };
 use std::time::Duration;
 
+use anyhow::anyhow;
 use futures_util::{SinkExt, StreamExt};
 use tokio::{
     net::TcpStream,
@@ -21,7 +22,7 @@ use tungstenite::{
 };
 use url::Url;
 
-use crate::error::{Error, Result};
+use crate::error::{self, Error, Result};
 use crate::json::{self, Id, WsMessage};
 use crate::sync::{atomic::AtomicId};
 
@@ -33,8 +34,10 @@ const KEEPALIVE_INTERVAL_SEC: u64 = 15;
 
 
 /// Represents commands understood by the `WsApiMessenger`.
+#[derive(Debug)]
 enum Command {
     Message(WsMessage),
+    Register(Id, mpsc::Sender<WsMessage>),
     Quit,
 }
 
@@ -100,21 +103,38 @@ impl WsApi {
         &self.url
     }
 
-    // Writes the given `msg` into the queue of messages to be sent to HA.
-    pub async fn send(&self, msg: WsMessage) -> Result<()> {
-        // TODO: produce id internally (*3)
-        match self.tx.send(Command::Message(msg)).await {
-            Ok(()) => Ok(()),
-            Err(mpsc::error::SendError(cmd)) => match cmd {
-                Command::Message(msg) => Err(Error::SendError(msg)),
-                _ => unreachable!()
+    async fn send_command(&self, cmd: Command) -> Result<()> {
+        match self.tx.send(cmd).await {
+            Ok(()) => {
+                Ok(())
             },
+            Err(mpsc::error::SendError(cmd)) => Err(match cmd {
+                Command::Message(msg) => Error::SendError(msg),
+                cmd => Error::InternalError {
+                    ////cause: anyhow::anyhow!("Sending error for: {:?}", cmd)
+                    cause: anyhow!(mpsc::error::SendError(cmd))
+                },
+            }),
         }
     }
 
-    // TODO: produce id internally, do not expose next_id() (*3)
-    pub fn next_id(&self) -> Id {
-        self.id.next()
+    async fn registration(&self) -> Result<(Id, mpsc::Receiver<WsMessage>)> {
+        let id = self.id.next();
+        let (tx, rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
+        let cmd = Command::Register(id, tx);
+        self.send_command(cmd).await?;
+        Ok((id, rx))
+    }
+
+    pub async fn subscribe_events(&self, event_type: Option<json::EventType>) -> Result<mpsc::Receiver<WsMessage>> {
+        let (id, mut rx) = self.registration().await?;
+        self.send_command(Command::Message(WsMessage::SubscribeEvents { id, event_type })).await?;
+
+        let reply = rx.recv()
+            .await
+            .ok_or(Error::InternalError { cause: anyhow!("missing response")})?;
+
+        reply.receiver_or_error(rx)
     }
 
     // Consumes `self` closing all connections and resources.
@@ -122,6 +142,26 @@ impl WsApi {
         self.tx.send(Command::Quit).await;
         // TODO: wait for confirmation (*1)
         Ok(())
+    }
+}
+
+trait FromReply<T> {
+    fn receiver_or_error(&self, rx: mpsc::Receiver<T>) -> Result<mpsc::Receiver<T>>;
+}
+
+impl<T> FromReply<T> for WsMessage {
+    fn receiver_or_error(&self, rx: mpsc::Receiver<T>) -> Result<mpsc::Receiver<T>> {
+        match self {
+            WsMessage::Result { data: json::ResultBody { success: true, .. } } => {
+                Ok(rx)
+            },
+            WsMessage::Result { data: json::ResultBody { success: false, error, .. } } => {
+                Err(Error::from(*error))
+            },
+            u => {
+                Err(Error::UnexpectedMessage(*u))
+            },
+        }
     }
 }
 
@@ -181,7 +221,7 @@ async fn messenger_task(mut messenger: WsApiMessenger) -> Result<()> {
 
     let mut done = false;
 
-    loop {
+    while !done {
         tokio::select! {
             // Keepalive ping event - HA will close the connection should it stop receiving messages
             _ = keepalive.tick() => {
@@ -190,20 +230,23 @@ async fn messenger_task(mut messenger: WsApiMessenger) -> Result<()> {
 
             // Event on the command channel
             cmd = messenger.rx.recv() => match cmd {
-                // A new command has been sent via the API
                 Some(cmd) => match cmd {
-                    // Send a new message to HA
                     Command::Message(msg) => {
+                        // Send a new message to HA
                         messenger.send(msg).await?;
                     },
-                    // Explicit termination request
+                    Command::Register(id, registered) {
+                        // TODO: handle response registration
+                        unimplemented!()
+                    },
                     Command::Quit => {
+                        // Explicit termination request
                         // TODO: handle termination request (*1)
                         done = true;
                     },
                 },
-                // Termination due to end of commands
                 None => {
+                    // Termination due to end of commands
                     //TODO: handle channel closed (*1)
                     done = true;
                 }
@@ -211,16 +254,29 @@ async fn messenger_task(mut messenger: WsApiMessenger) -> Result<()> {
 
             // Event on the HA socket
             rcv = messenger.socket.next() => match rcv {
-                Some(rcv) => {
-                    // TODO: dispatch received message (*2)
+                Some(rcv) => match rcv {
+                    Ok(rcv) => {
+                        if rcv.is_text() {
+                            let msg = &rcv.into_text().unwrap();
+                            let msg = json::deserialize(msg).unwrap();
+                            messenger.dispatch(msg);
+                        } else {
+                            // TODO: handle message type error
+                        }
+                    },
+                    Err(err) => {
+                        // TODO: handle tungstenite receive error
+                    },
                 },
                 None => {
                     //TODO: handle socket closed (*1)
+                    done = true;
                 }
             }
         }
     }
     // TODO: send termination confirmation (*1)
+    Ok(())
 }
 
 async fn connect_ws(url: &Url) -> Result<WebSocketStream> {
