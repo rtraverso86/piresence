@@ -139,16 +139,26 @@ pub enum EventType {
     Unknown,
 }
 
+fn fmt_json(f: &mut fmt::Formatter<'_>, obj: &impl Serialize) -> fmt::Result {
+    match serde_json::to_string(&obj) {
+        Ok(s) => write!(f, "{}", s),
+        Err(_) => Err(fmt::Error),
+    }
+}
+
+impl fmt::Display for WsMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt_json(f, &self)
+    }
+}
+
 impl Default for EventType {
     fn default() -> Self { EventType::Unknown }
 }
 
 impl fmt::Display for EventType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match serde_json::to_string(&self) {
-            Ok(s) => write!(f, "{}", s),
-            Err(_) => Err(fmt::Error),
-        }
+        fmt_json(f,&self)
     }
 }
 
