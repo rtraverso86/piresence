@@ -13,7 +13,7 @@ pub enum WsMessage {
 
     // Authentication
     AuthRequired { ha_version: String },
-    Auth { access_token: String },
+    Auth { auth_token: String },
     AuthOk { ha_version: String },
     AuthInvalid { message: String },
 
@@ -222,7 +222,7 @@ mod tests {
         "{ \"type\": \"auth_required\", \"ha_version\": \"2021.5.3\" }");
 
     serde_test!(msg_auth,
-        WsMessage::Auth { access_token: String::from("ABCDEFGH") },
+        WsMessage::Auth { auth_token: String::from("ABCDEFGH") },
         "{ \"type\": \"auth\", \"access_token\": \"ABCDEFGH\" }");
 
     serde_test!(msg_auth_ok,

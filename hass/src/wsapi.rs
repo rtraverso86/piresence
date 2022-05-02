@@ -71,7 +71,6 @@ impl WsApi {
 
         let id2 = id.clone();
         let socket = connect_ws(&url).await?;
-        // TODO: authenticate!
         let (tx, rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
         let (unhandled_tx, unhandled_rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
         tokio::spawn(async move {
@@ -86,6 +85,8 @@ impl WsApi {
             id,
             unhandled_rx: Some(unhandled_rx),
         };
+
+        api.authenticate().await?;
 
         Ok(api)
     }
@@ -124,6 +125,41 @@ impl WsApi {
             })
         }
 
+    }
+
+    async fn authenticate(&mut self) -> Result<()> {
+        // Step 1. HA sends an auth_required message
+        match self.recv_unhandled().await? {
+            WsMessage::AuthRequired { ha_version } => {
+                tracing::info!("authentication: received auth_required message from HA {}", &ha_version);
+            },
+            unexp => {
+                tracing::error!("authentication: failed for unexpected message: {:?}", unexp);
+                return Err(Error::UnexpectedMessage(unexp));
+            }
+        }
+
+        // Step 2. We reply with an auth message complete with auth_token
+        let auth_cmd = Command::Message(WsMessage::Auth { auth_token: self.auth_token.clone() });
+        self.send_command(auth_cmd).await?;
+        tracing::info!("authentication: auth_token sent");
+
+        // Step 3. HA either validates the authentication with an auth_ok message, or
+        //         rejects it with an auth_invalid message.
+        match self.recv_unhandled().await? {
+            WsMessage::AuthOk { .. } => {
+                tracing::info!("authentication: successful");
+                Ok(())
+            },
+            WsMessage::AuthInvalid {message} => {
+                tracing::error!("authentication: failed ({})", message);
+                Err(Error::Authentication(message))
+            },
+            unexp => {
+                tracing::error!("authentication: failed for unexpected message: {:?}", unexp);
+                Err(Error::UnexpectedMessage(unexp))
+            },
+        }
     }
 
     async fn send_command(&self, cmd: Command) -> Result<()> {
@@ -262,7 +298,7 @@ impl WsApi2 {
             }
         }
 
-        let msg = WsMessage::Auth { access_token: String::from(&self.auth_token) };
+        let msg = WsMessage::Auth { auth_token: String::from(&self.auth_token) };
         self.write_message(&msg).await?;
         tracing::info!("authentication: auth_token sent");
 
