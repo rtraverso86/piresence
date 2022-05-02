@@ -49,6 +49,8 @@ pub enum WsMessage {
 }
 
 impl WsMessage {
+
+    /// Retrieves the `Id` associated to the message, if any.
     pub fn id(&self) -> Option<Id> {
         use WsMessage::*;
         match self {
@@ -62,6 +64,7 @@ impl WsMessage {
             _ => None, // other message types don't have any Id
         }
     }
+
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]

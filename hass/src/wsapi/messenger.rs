@@ -42,30 +42,32 @@ pub struct WsApiMessenger {
     socket: WebSocketStream,
     id: Arc<AtomicId>,
     receivers: BTreeMap<Id, mpsc::Sender<WsMessage>>,
+    unhandled: Option<mpsc::Sender<WsMessage>>,
 }
 
 impl WsApiMessenger {
-    pub fn new(rx: mpsc::Receiver<Command>, socket: WebSocketStream, id: Arc<AtomicId>) -> WsApiMessenger {
+    pub fn new(rx: mpsc::Receiver<Command>, socket: WebSocketStream, id: Arc<AtomicId>, unhandled: Option<mpsc::Sender<WsMessage>>) -> WsApiMessenger {
         WsApiMessenger {
             rx,
             socket,
             id,
+            unhandled,
             receivers: BTreeMap::new(),
         }
     }
 
     pub async fn run(mut self) -> Result<()> {
         let mut keepalive = time::interval(Duration::from_secs(KEEPALIVE_INTERVAL_SEC));
-    
+
         let mut done = false;
-    
+
         while !done {
             tokio::select! {
                 // Keepalive ping event - HA will close the connection should it stop receiving messages
                 _ = keepalive.tick() => {
                     self.send_ping().await?;
                 },
-    
+
                 // Event on the command channel
                 cmd = self.rx.recv() => match cmd {
                     Some(cmd) => match cmd {
@@ -87,7 +89,7 @@ impl WsApiMessenger {
                         done = true;
                     }
                 },
-    
+
                 // Event on the HA socket
                 rcv = self.socket.next() => match rcv {
                     Some(rcv) => match rcv {
@@ -136,22 +138,36 @@ impl WsApiMessenger {
     }
 
     async fn dispatch(&mut self, msg: WsMessage) -> Result<()> {
-        let id = msg.id()
-            .ok_or(Error::InternalError {
-                cause: anyhow!("could not dispatch message: no id:  {}", &msg)
-            })?;
+        let id = msg.id();
 
-        let receiver = self.receivers.get(&id)
-            .ok_or(Error::InternalError {
-                cause: anyhow!("could not dispatch message: no receiver: {}", &msg)
-            })?;
+        // This commented variant dispatches to self.unhandled, if defined,
+        // even messages with and id. I'd rather not to however, because
+        // there must be a reason why nobody registered to wait for them
+        ////let receiver = id
+        ////    .and_then(|id| { self.receivers.get(&id) })
+        ////    .or_else(|| self.unhandled.as_ref());
 
-        if let Err(e) = receiver.send(msg).await {
-            self.receivers.remove(&id);
+        let receiver = id.map_or_else(
+            || self.unhandled.as_ref(),
+            |id| { self.receivers.get(&id) });
+
+        if let Some(receiver) = receiver {
+            if let Err(e) = receiver.send(msg).await {
+                if let Some(id) = id {
+                    self.receivers.remove(&id);
+                } else {
+                    self.unhandled.take();
+                }
+                return Err(Error::InternalError {
+                    cause: anyhow!("could not dispatch message: send failed: {}", e.0)
+                });
+            }
+        } else {
             return Err(Error::InternalError {
-                cause: anyhow!("could not dispatch message: send failed: {}", e.0)
+                cause: anyhow!("could not dispatch message: no receiver: {}", &msg)
             });
         }
+
         Ok(())
     }
 

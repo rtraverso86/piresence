@@ -48,6 +48,10 @@ pub struct WsApi {
     /// Transmission channel to send commands to the `WsApiMessenger`
     tx: mpsc::Sender<Command>,
 
+    /// Receiver for all unhandled WsMessage, i.e. those not associated 
+    /// to any `WsApi::registration()`
+    unhandled_rx: Option<mpsc::Receiver<WsMessage>>,
+
     /// Next available identifier, to be used for `WsMessage` requests
     id: Arc<AtomicId>,
 }
@@ -69,16 +73,18 @@ impl WsApi {
         let socket = connect_ws(&url).await?;
         // TODO: authenticate!
         let (tx, rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
+        let (unhandled_tx, unhandled_rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
         tokio::spawn(async move {
-            let messenger = WsApiMessenger::new(rx, socket, id2);
+            let messenger = WsApiMessenger::new(rx, socket, id2, Some(unhandled_tx));
             messenger.run().await;
         });
 
-        let api = WsApi {
+        let mut api = WsApi {
             auth_token: auth_token.to_owned(),
             url,
             tx,
-            id
+            id,
+            unhandled_rx: Some(unhandled_rx),
         };
 
         Ok(api)
@@ -99,6 +105,25 @@ impl WsApi {
     /// Returns the full URL of the WebSocket endpoint `self` is connected to.
     pub fn url(&self) -> &Url {
         &self.url
+    }
+
+    async fn recv_unhandled(&mut self) -> Result<WsMessage> {
+        if let Some(unhandled_rx) = self.unhandled_rx.as_mut() {
+            match unhandled_rx.recv().await {
+                Some(msg) => {
+                    Ok(msg)
+                },
+                None => {
+                    self.unhandled_rx.take();
+                    Err(Error::NoNextMessage)
+                }
+            }
+        } else {
+            Err(Error::InternalError {
+                cause: anyhow!("unhandled_rx channel already closed")
+            })
+        }
+
     }
 
     async fn send_command(&self, cmd: Command) -> Result<()> {
