@@ -48,6 +48,22 @@ pub enum WsMessage {
 
 }
 
+impl WsMessage {
+    pub fn id(&self) -> Option<Id> {
+        use WsMessage::*;
+        match self {
+            SubscribeEvents { id, .. } => Some(*id),
+            UnsubscribeEvents { id, .. } => Some(*id),
+            Event { data } => Some(data.id),
+            FireEvent { data } => Some(data.id),
+            GetStates { id } => Some(*id),
+            Ping { id } => Some(*id),
+            Pong { id } => Some(*id),
+            _ => None, // other message types don't have any Id
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct ResultBody {
     pub id: Id,
