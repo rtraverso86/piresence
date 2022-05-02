@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::{
     Arc,
 };
@@ -22,7 +23,7 @@ use tungstenite::{
 };
 use url::Url;
 
-use crate::error::{self, Error, Result};
+use crate::error::{Error, Result};
 use crate::json::{self, Id, WsMessage};
 use crate::sync::{atomic::AtomicId};
 
@@ -70,6 +71,7 @@ impl WsApi {
 
         let id2 = id.clone();
         let socket = connect_ws(&url).await?;
+        // TODO: authenticate!
         let (tx, rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
         tokio::spawn(async move {
             let messenger = WsApiMessenger::new(rx, socket, id2);
@@ -162,6 +164,7 @@ struct WsApiMessenger {
     rx: mpsc::Receiver<Command>,
     socket: WebSocketStream,
     id: Arc<AtomicId>,
+    receivers: BTreeMap<Id, mpsc::Sender<WsMessage>>,
 }
 
 impl WsApiMessenger {
@@ -170,9 +173,11 @@ impl WsApiMessenger {
             rx,
             socket,
             id,
+            receivers: BTreeMap::new(),
         }
     }
 
+    /// Send the given `msg` to HA
     async fn send(&mut self, msg: WsMessage) -> Result<()> {
         let msg = json::serialize(&msg)?;
         tracing::trace!("send({})", &msg);
@@ -180,32 +185,38 @@ impl WsApiMessenger {
         Ok(())
     }
 
+    /// Send a ping message to HA
     async fn send_ping(&mut self) -> Result<()> {
         let msg = WsMessage::Ping { id: self.id.next() };
         self.send(msg).await?;
         Ok(())
     }
 
-    async fn read_message(&mut self) -> Result<WsMessage> {
-        let nxt = self.socket.next().await;
-        match nxt {
-            Some(nxt) => {
-                let json = nxt?;
-                tracing::trace!("read_message(..): received: {}", &json);
-                if json.is_text() {
-                    json::deserialize(&json.into_text().unwrap())
-                } else {
-                    Err(Error::UnexpectedBinaryMessage)
-                }
-            },
-            None => Err(Error::NoNextMessage)
-        }
+    fn register(&mut self, id: Id, reg_sender: mpsc::Sender<WsMessage>) {
+        // drop the old sender, if present
+        let _ = self.receivers.insert(id, reg_sender);
     }
 
-    fn dispatch(&mut self, msg: WsMessage) -> Result<()> {
-        //TODO: develop message dispatching (*2)
+    async fn dispatch(&mut self, msg: WsMessage) -> Result<()> {
+        let id = msg.id()
+            .ok_or(Error::InternalError {
+                cause: anyhow!("could not dispatch message: no id:  {}", &msg)
+            })?;
+
+        let receiver = self.receivers.get(&id)
+            .ok_or(Error::InternalError {
+                cause: anyhow!("could not dispatch message: no receiver: {}", &msg)
+            })?;
+
+        if let Err(e) = receiver.send(msg).await {
+            self.receivers.remove(&id);
+            return Err(Error::InternalError {
+                cause: anyhow!("could not dispatch message: send failed: {}", e.0)
+            });
+        }
         Ok(())
     }
+
 }
 
 async fn messenger_task(mut messenger: WsApiMessenger) -> Result<()> {
@@ -224,12 +235,10 @@ async fn messenger_task(mut messenger: WsApiMessenger) -> Result<()> {
             cmd = messenger.rx.recv() => match cmd {
                 Some(cmd) => match cmd {
                     Command::Message(msg) => {
-                        // Send a new message to HA
                         messenger.send(msg).await?;
                     },
-                    Command::Register(id, registered) => {
-                        // TODO: handle response registration
-                        unimplemented!()
+                    Command::Register(id, reg_sender) => {
+                        messenger.register(id, reg_sender);
                     },
                     Command::Quit => {
                         // Explicit termination request
@@ -251,7 +260,7 @@ async fn messenger_task(mut messenger: WsApiMessenger) -> Result<()> {
                         if rcv.is_text() {
                             let msg = &rcv.into_text().unwrap();
                             let msg = json::deserialize(msg).unwrap();
-                            messenger.dispatch(msg);
+                            messenger.dispatch(msg).await;
                         } else {
                             // TODO: handle message type error
                         }
