@@ -1,15 +1,14 @@
-use std::collections::BTreeMap;
+mod messenger;
+
 use std::sync::{
     Arc,
 };
-use std::time::Duration;
 
 use anyhow::anyhow;
 use futures_util::{SinkExt, StreamExt};
 use tokio::{
     net::TcpStream,
     sync::mpsc,
-    time,
 };
 use tokio_tungstenite::{
     self,
@@ -27,6 +26,10 @@ use crate::error::{Error, Result};
 use crate::json::{self, Id, WsMessage};
 use crate::sync::{atomic::AtomicId};
 
+use messenger::{
+    Command,
+    WsApiMessenger
+};
 
 type WebSocketStream = tokio_tungstenite::WebSocketStream<MaybeTlsStream<TcpStream>>;
 
@@ -34,13 +37,6 @@ const MPSC_CHANNEL_BOUND: usize = 128;
 const KEEPALIVE_INTERVAL_SEC: u64 = 15;
 
 
-/// Represents commands understood by the `WsApiMessenger`.
-#[derive(Debug)]
-enum Command {
-    Message(WsMessage),
-    Register(Id, mpsc::Sender<WsMessage>),
-    Quit,
-}
 
 #[derive(Debug)]
 pub struct WsApi {
@@ -75,7 +71,7 @@ impl WsApi {
         let (tx, rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
         tokio::spawn(async move {
             let messenger = WsApiMessenger::new(rx, socket, id2);
-            messenger_task(messenger).await;
+            messenger.run().await;
         });
 
         let api = WsApi {
@@ -160,125 +156,6 @@ fn receiver_or_error(reply: WsMessage, rx: mpsc::Receiver<WsMessage>) -> Result<
     }
 }
 
-struct WsApiMessenger {
-    rx: mpsc::Receiver<Command>,
-    socket: WebSocketStream,
-    id: Arc<AtomicId>,
-    receivers: BTreeMap<Id, mpsc::Sender<WsMessage>>,
-}
-
-impl WsApiMessenger {
-    fn new(rx: mpsc::Receiver<Command>, socket: WebSocketStream, id: Arc<AtomicId>) -> WsApiMessenger {
-        WsApiMessenger {
-            rx,
-            socket,
-            id,
-            receivers: BTreeMap::new(),
-        }
-    }
-
-    /// Send the given `msg` to HA
-    async fn send(&mut self, msg: WsMessage) -> Result<()> {
-        let msg = json::serialize(&msg)?;
-        tracing::trace!("send({})", &msg);
-        self.socket.send(Message::Text(msg)).await?;
-        Ok(())
-    }
-
-    /// Send a ping message to HA
-    async fn send_ping(&mut self) -> Result<()> {
-        let msg = WsMessage::Ping { id: self.id.next() };
-        self.send(msg).await?;
-        Ok(())
-    }
-
-    fn register(&mut self, id: Id, reg_sender: mpsc::Sender<WsMessage>) {
-        // drop the old sender, if present
-        let _ = self.receivers.insert(id, reg_sender);
-    }
-
-    async fn dispatch(&mut self, msg: WsMessage) -> Result<()> {
-        let id = msg.id()
-            .ok_or(Error::InternalError {
-                cause: anyhow!("could not dispatch message: no id:  {}", &msg)
-            })?;
-
-        let receiver = self.receivers.get(&id)
-            .ok_or(Error::InternalError {
-                cause: anyhow!("could not dispatch message: no receiver: {}", &msg)
-            })?;
-
-        if let Err(e) = receiver.send(msg).await {
-            self.receivers.remove(&id);
-            return Err(Error::InternalError {
-                cause: anyhow!("could not dispatch message: send failed: {}", e.0)
-            });
-        }
-        Ok(())
-    }
-
-}
-
-async fn messenger_task(mut messenger: WsApiMessenger) -> Result<()> {
-    let mut keepalive = time::interval(Duration::from_secs(KEEPALIVE_INTERVAL_SEC));
-
-    let mut done = false;
-
-    while !done {
-        tokio::select! {
-            // Keepalive ping event - HA will close the connection should it stop receiving messages
-            _ = keepalive.tick() => {
-                messenger.send_ping().await?;
-            },
-
-            // Event on the command channel
-            cmd = messenger.rx.recv() => match cmd {
-                Some(cmd) => match cmd {
-                    Command::Message(msg) => {
-                        messenger.send(msg).await?;
-                    },
-                    Command::Register(id, reg_sender) => {
-                        messenger.register(id, reg_sender);
-                    },
-                    Command::Quit => {
-                        // Explicit termination request
-                        // TODO: handle termination request (*1)
-                        done = true;
-                    },
-                },
-                None => {
-                    // Termination due to end of commands
-                    //TODO: handle channel closed (*1)
-                    done = true;
-                }
-            },
-
-            // Event on the HA socket
-            rcv = messenger.socket.next() => match rcv {
-                Some(rcv) => match rcv {
-                    Ok(rcv) => {
-                        if rcv.is_text() {
-                            let msg = &rcv.into_text().unwrap();
-                            let msg = json::deserialize(msg).unwrap();
-                            messenger.dispatch(msg).await;
-                        } else {
-                            // TODO: handle message type error
-                        }
-                    },
-                    Err(err) => {
-                        // TODO: handle tungstenite receive error
-                    },
-                },
-                None => {
-                    //TODO: handle socket closed (*1)
-                    done = true;
-                }
-            }
-        }
-    }
-    // TODO: send termination confirmation (*1)
-    Ok(())
-}
 
 async fn connect_ws(url: &Url) -> Result<WebSocketStream> {
     let (socket, response) = connect_async(url).await?;
