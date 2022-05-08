@@ -63,15 +63,8 @@ impl WsApiMessenger {
     pub async fn run(mut self) -> Result<()> {
         let mut keepalive = time::interval(Duration::from_secs(KEEPALIVE_INTERVAL_SEC));
 
-        let mut done = false;
-
-        while !done {
+        loop {
             tokio::select! {
-                // Keepalive ping event - HA will close the connection should it stop receiving messages
-                _ = keepalive.tick() => {
-                    self.send_ping().await?;
-                },
-
                 // Event on the command channel
                 cmd = self.rx.recv() => match cmd {
                     Some(cmd) => match cmd {
@@ -80,40 +73,57 @@ impl WsApiMessenger {
                         },
                         Command::Register(id, reg_sender) => {
                             self.register(id, reg_sender);
-                        },
-                        // TODO: handle termination request (*1)
+                        }
                     },
                     None => {
                         // Termination due to end of commands
-                        //TODO: handle channel closed (*1)
-                        done = true;
+                        break;
                     }
                 },
 
                 // Event on the HA socket
                 rcv = self.socket.next() => match rcv {
-                    Some(rcv) => match rcv {
-                        Ok(rcv) => {
-                            if rcv.is_text() {
-                                let msg = &rcv.into_text().unwrap();
-                                let msg = json::deserialize(msg).unwrap();
-                                self.dispatch(msg).await;
-                            } else {
-                                // TODO: handle message type error
-                            }
-                        },
-                        Err(err) => {
-                            // TODO: handle tungstenite receive error
-                        },
+                    Some(Ok(rcv)) => {
+                        if rcv.is_text() {
+                            let msg = &rcv.into_text().unwrap();
+                            let msg = json::deserialize(msg).unwrap();
+                            self.dispatch(msg).await;
+                        } else {
+                            // We usually only expect text messages from HA
+                            tracing::error!("unexpected messaage: {:?}", rcv);
+                        }
+                    },
+                    Some(Err(e)) => {
+                        tracing::error!("websocket error: {:?}", e);
+                        break;
                     },
                     None => {
-                        //TODO: handle socket closed (*1)
-                        done = true;
+                        tracing::warn!("websocket closed by peer");
+                        break;
                     }
+                },
+
+                // Keepalive ping event
+                // HA will close the connection should it stop receiving messages
+                _ = keepalive.tick() => {
+                    self.send_ping().await?;
+                },
+
+                _ = self.shutdown.recv() => {
+                    tracing::info!("shutdown request");
+                    break;
                 }
-            }
+
+                else => {
+                    tracing::warn!("select! reached else branch");
+                    break;
+                }
+            };
         }
-        // TODO: send termination confirmation (*1)
+
+        self.rx.close();
+        let _ = self.socket.close(None).await;
+
         Ok(())
     }
 

@@ -76,6 +76,7 @@ impl WsApi {
         tokio::spawn(async move {
             let messenger = WsApiMessenger::new(rx, socket, id2, Some(unhandled_tx), shutdown);
             messenger.run().await;
+            tracing::info!("messenger task terminated");
         });
 
         let mut api = WsApi {
@@ -176,31 +177,57 @@ impl WsApi {
         }
     }
 
-    async fn registration(&self) -> Result<(Id, mpsc::Receiver<WsMessage>)> {
+    async fn registration_ch(&self, tx: mpsc::Sender<WsMessage>) -> Result<Id> {
         let id = self.id.next();
-        let (tx, rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
-        let cmd = Command::Register(id, tx);
-        self.send_command(cmd).await?;
-        Ok((id, rx))
+        self.send_command(Command::Register(id, tx)).await?;
+        Ok(id)
     }
 
-    pub async fn subscribe_events(&self, event_type: Option<json::EventType>) -> Result<mpsc::Receiver<WsMessage>> {
+    async fn registration(&self) -> Result<(Id, mpsc::Receiver<WsMessage>)> {
+        let (tx, rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
+        self.registration_ch(tx).await.map(|(id)| { (id, rx) })
+    }
+
+    pub async fn subscribe_event(&self, event_type: Option<json::EventType>) -> Result<mpsc::Receiver<WsMessage>> {
         let (id, mut rx) = self.registration().await?;
         self.send_command(Command::Message(WsMessage::SubscribeEvents { id, event_type })).await?;
 
-        let reply = rx.recv()
-            .await
+        let reply = rx.recv().await
             .ok_or(Error::InternalError { cause: anyhow!("missing response")})?;
 
-        receiver_or_error(reply, rx)
+        result_or_error(reply, rx)
+    }
+
+    pub async fn subscribe_events(&self, event_types: &[json::EventType]) -> Result<mpsc::Receiver<WsMessage>> {
+        let (tx, mut rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
+        for event_type in event_types {
+            let id = self.registration_ch(tx.clone()).await?;
+            self.send_command(Command::Message(WsMessage::SubscribeEvents {
+                id, event_type: Some(*event_type)
+            })).await?;
+
+            loop {
+                let reply = rx.recv().await
+                    .ok_or(Error::InternalError { cause: anyhow!("missing response") })?;
+                match result_or_error(reply, ()) {
+                    Ok(_) => break,
+                    Err(Error::UnexpectedMessage(e)) => {
+                        tracing::warn!("unexpected message dropped: {:?}", e);
+                        continue;
+                    },
+                    Err(e) => return Err(e)
+                }
+            }
+        }
+        Ok(rx)
     }
 
 }
 
-fn receiver_or_error(reply: WsMessage, rx: mpsc::Receiver<WsMessage>) -> Result<mpsc::Receiver<WsMessage>> {
+fn result_or_error<T>(reply: WsMessage, result: T) -> Result<T> {
     match reply {
         WsMessage::Result { data: json::ResultBody { success: true, .. } } => {
-            Ok(rx)
+            Ok(result)
         },
         WsMessage::Result { data: json::ResultBody { success: false, error, .. } } => {
             Err(Error::from(error))
@@ -244,6 +271,7 @@ mod tests {
             x => panic!("unexpected result: {:?}", x),
         };
         manager.shutdown().await;
+        println!("completed shutdown? how?");
     }
 }
 
