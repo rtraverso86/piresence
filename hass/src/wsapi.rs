@@ -24,7 +24,7 @@ use url::Url;
 
 use crate::error::{Error, Result};
 use crate::json::{self, Id, WsMessage};
-use crate::sync::{atomic::AtomicId};
+use crate::sync::{atomic::AtomicId, shutdown::Shutdown};
 
 use messenger::{
     Command,
@@ -43,7 +43,7 @@ pub struct WsApi {
     /// Endpoint URL
     url: Url,
     // Endpoint authentication token
-    auth_token: String,
+    access_token: String,
 
     /// Transmission channel to send commands to the `WsApiMessenger`
     tx: mpsc::Sender<Command>,
@@ -60,7 +60,7 @@ impl WsApi {
 
     /// Connects to a given `host` and `port` HA WebSocket endpoint with the provided
     /// and performs authentication with the `auth_token`.
-    pub async fn new(secure: bool, host: &str, port: u16, auth_token: &str) -> Result<WsApi>
+    pub async fn new(secure: bool, host: &str, port: u16, access_token: &str, shutdown: Shutdown) -> Result<WsApi>
     {
         let scheme = if secure { "wss" } else { "ws" };
         let url = Url::parse(&format!("{}://{}:{}/api/websocket", scheme, host, port))?;
@@ -74,12 +74,12 @@ impl WsApi {
         let (tx, rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
         let (unhandled_tx, unhandled_rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
         tokio::spawn(async move {
-            let messenger = WsApiMessenger::new(rx, socket, id2, Some(unhandled_tx));
+            let messenger = WsApiMessenger::new(rx, socket, id2, Some(unhandled_tx), shutdown);
             messenger.run().await;
         });
 
         let mut api = WsApi {
-            auth_token: auth_token.to_owned(),
+            access_token: access_token.to_owned(),
             url,
             tx,
             id,
@@ -93,14 +93,14 @@ impl WsApi {
 
     /// Connects to a given `host` and `port` with the provided authentication
     /// token `auth_token`.
-    pub async fn new_unsecure(host: &str, port: u16, auth_token: &str) -> Result<WsApi> {
-        Self::new(false, host, port, auth_token).await
+    pub async fn new_unsecure(host: &str, port: u16, access_token: &str, shutdown: Shutdown) -> Result<WsApi> {
+        Self::new(false, host, port, access_token, shutdown).await
     }
 
     /// Connects to a given `host` and `port` with the provided authentication
     /// token `auth_token`.
-    pub async fn new_secure(host: &str, port: u16, auth_token: &str) -> Result<WsApi> {
-        Self::new(true, host, port, auth_token).await
+    pub async fn new_secure(host: &str, port: u16, access_token: &str, shutdown: Shutdown) -> Result<WsApi> {
+        Self::new(true, host, port, access_token, shutdown).await
     }
 
     /// Returns the full URL of the WebSocket endpoint `self` is connected to.
@@ -140,7 +140,7 @@ impl WsApi {
         }
 
         // Step 2. We reply with an auth message complete with auth_token
-        let auth_cmd = Command::Message(WsMessage::Auth { auth_token: self.auth_token.clone() });
+        let auth_cmd = Command::Message(WsMessage::Auth { access_token: self.access_token.clone() });
         self.send_command(auth_cmd).await?;
         tracing::info!("authentication: auth_token sent");
 
@@ -195,12 +195,6 @@ impl WsApi {
         receiver_or_error(reply, rx)
     }
 
-    // Consumes `self` closing all connections and resources.
-    pub async fn close(self) -> Result<()> {
-        self.tx.send(Command::Quit).await;
-        // TODO: wait for confirmation (*1)
-        Ok(())
-    }
 }
 
 fn receiver_or_error(reply: WsMessage, rx: mpsc::Receiver<WsMessage>) -> Result<mpsc::Receiver<WsMessage>> {
@@ -230,21 +224,26 @@ async fn connect_ws(url: &Url) -> Result<WebSocketStream> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sync::shutdown;
 
     #[tokio::test]
     async fn new_unknown_host() {
-        match WsApi::new_unsecure("i.do.not.exist", 8123, "auth_token").await {
+        let manager = shutdown::Manager::new();
+        match WsApi::new_unsecure("i.do.not.exist", 8123, "auth_token", manager.subscribe()).await {
             Err(Error::WebSocket(_)) => (), // OK
             x => panic!("unexpected result: {:?}", x),
-        }
+        };
+        manager.shutdown().await;
     }
 
     #[tokio::test]
     async fn new_wrong_port() {
-        match WsApi::new_unsecure("localhost", 18123, "auth_token").await {
+        let manager = shutdown::Manager::new();
+        match WsApi::new_unsecure("localhost", 18123, "auth_token", manager.subscribe()).await {
             Err(Error::WebSocket(_)) => (), // OK
             x => panic!("unexpected result: {:?}", x),
-        }
+        };
+        manager.shutdown().await;
     }
 }
 
@@ -298,7 +297,7 @@ impl WsApi2 {
             }
         }
 
-        let msg = WsMessage::Auth { auth_token: String::from(&self.auth_token) };
+        let msg = WsMessage::Auth { access_token: String::from(&self.auth_token) };
         self.write_message(&msg).await?;
         tracing::info!("authentication: auth_token sent");
 

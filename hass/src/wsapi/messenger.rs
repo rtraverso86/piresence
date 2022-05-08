@@ -21,7 +21,7 @@ use tungstenite::{
 
 use crate::error::{Error, Result};
 use crate::json::{self, Id, WsMessage};
-use crate::sync::{atomic::AtomicId};
+use crate::sync::{atomic::AtomicId, shutdown::Shutdown};
 
 use super::{
     WebSocketStream,
@@ -33,7 +33,6 @@ use super::{
 pub enum Command {
     Message(WsMessage),
     Register(Id, mpsc::Sender<WsMessage>),
-    Quit,
 }
 
 
@@ -43,15 +42,20 @@ pub struct WsApiMessenger {
     id: Arc<AtomicId>,
     receivers: BTreeMap<Id, mpsc::Sender<WsMessage>>,
     unhandled: Option<mpsc::Sender<WsMessage>>,
+    
+    /// Receives shutdown signal and notifies back about completed shutdown
+    /// once dropped.
+    shutdown: Shutdown,
 }
 
 impl WsApiMessenger {
-    pub fn new(rx: mpsc::Receiver<Command>, socket: WebSocketStream, id: Arc<AtomicId>, unhandled: Option<mpsc::Sender<WsMessage>>) -> WsApiMessenger {
+    pub fn new(rx: mpsc::Receiver<Command>, socket: WebSocketStream, id: Arc<AtomicId>, unhandled: Option<mpsc::Sender<WsMessage>>, shutdown: Shutdown) -> WsApiMessenger {
         WsApiMessenger {
             rx,
             socket,
             id,
             unhandled,
+            shutdown,
             receivers: BTreeMap::new(),
         }
     }
@@ -77,11 +81,7 @@ impl WsApiMessenger {
                         Command::Register(id, reg_sender) => {
                             self.register(id, reg_sender);
                         },
-                        Command::Quit => {
-                            // Explicit termination request
-                            // TODO: handle termination request (*1)
-                            done = true;
-                        },
+                        // TODO: handle termination request (*1)
                     },
                     None => {
                         // Termination due to end of commands
