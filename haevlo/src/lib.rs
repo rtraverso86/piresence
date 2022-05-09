@@ -1,9 +1,11 @@
 use std::process;
 use clap::Parser;
-use hass::error::Error;
-use hass::wsapi::WsApi;
+use hass::WsMessage;
+use hass::error::{self, Error};
 use hass::json::EventType;
-use hass::json::Id;
+use hass::sync::shutdown::Shutdown;
+use hass::wsapi::WsApi;
+use tokio::sync::mpsc::Receiver;
 
 /// Command-line arguments for the binary
 #[derive(Parser, Debug)]
@@ -41,17 +43,66 @@ pub enum ExitCodes {
     CouldNotConnect = 1,
 }
 
+pub async fn build_wsapi(args: &CmdArgs, shutdown: Shutdown) -> error::Result<WsApi> {
+    let api = WsApi::new_unsecure(&args.host, args.port, &args.token, shutdown).await?;
+
+    let control_events = if args.use_events {
+        Some(register_control_events(&api).await?)
+    } else {
+        None
+    };
+
+    let state_events = api.subscribe_event(Some(EventType::StateChanged)).await?;
+
+    Ok(api)
+}
+
+pub async fn run(args: CmdArgs, shutdown: Shutdown) {
+    let use_events = self.args.use_events;
+    let mut recording = !use_events;
+    loop {
+        tokio::select! {
+            Some(ev) = self.registered_events(), if use_events => match ev {
+                EventType::HaevloStart => {
+                    recording = true;
+                },
+                EventType::HaevloStop => {
+                    recording = false;
+                },
+                _ => (),
+            },
+            Some(st) = self.state_events.recv() => {
+                if !recording {
+                    continue;
+                }
+                
+            },
+            else => break,
+        }
+    }
+}
+
+async fn registered_events(&mut self) -> Option<EventType> {
+    match self.control_events.as_mut() {
+        None => None,
+        Some(rx) => match rx.recv().await {
+            Some(WsMessage::Event { data }) => {
+                data.event.event_type
+            },
+            _ => None
+        },
+    }
+}
+
+
+
+async fn register_control_events(api: &WsApi) -> error::Result<Receiver<WsMessage>> {
+    let events = [EventType::HaevloStart, EventType::HaevloStop];
+    api.subscribe_events(&events).await
+}
+
 pub fn exit_error(err: Error, when: &str) {
     tracing::error!("error while {}: {}", when, err);
     process::exit(-1);
 }
 
-pub async fn register_events(ws: &mut WsApi) -> Result<Vec<Id>, (Error, String)> {
-    let events = [EventType::HaevloStart, EventType::HaevloStop];
-    ws.subscribe_events(&events).await.map_err(|(idx, err)| {
-        (
-            err,
-            format!("registering to event {}", events[idx]),
-        )
-    })
-}
