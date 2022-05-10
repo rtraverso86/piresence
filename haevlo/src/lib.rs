@@ -3,7 +3,7 @@ use std::process;
 use clap::Parser;
 use hass::WsMessage;
 use hass::error::{self, Error};
-use hass::json::EventType;
+use hass::json::{EventType, EventObj};
 use hass::sync::shutdown::Shutdown;
 use hass::wsapi::WsApi;
 use tokio::sync::mpsc::Receiver;
@@ -71,3 +71,17 @@ pub async fn register_control_events(api: &WsApi) -> error::Result<Receiver<WsMe
     api.subscribe_events(&events).await
 }
 
+pub fn filter_event(msg: WsMessage) -> Option<WsMessage> {
+    use hass::serde_json::value::{self, Value};
+    match &msg {
+        WsMessage::Event { event: EventObj::Event { data, ..}, .. } => {
+            if let Some(device_class) = data.pointer("/new_state/attributes/device_class") {
+                if device_class.is_string() && device_class.as_str().unwrap() == "motion" {
+                    return Some(msg);
+                }
+            }
+        },
+        _ => ()
+    };
+    None
+}

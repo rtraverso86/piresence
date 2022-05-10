@@ -2,7 +2,7 @@ use hass;
 use hass::error::Error;
 use hass::sync::shutdown;
 use hass::wsapi::WsApi;
-use hass::json::{WsMessage, EventType};
+use hass::json::{WsMessage, EventType, EventObj};
 use tokio;
 use tokio::sync::mpsc::Receiver;
 use tracing_subscriber;
@@ -15,8 +15,8 @@ async fn recv_ctrl_events(rx_opt: &mut Option<Receiver<WsMessage>>) -> Option<Ev
     match rx_opt.as_mut() {
         None => None,
         Some(rx) => match rx.recv().await {
-            Some(WsMessage::Event { data }) => {
-                data.event.event_type
+            Some(WsMessage::Event { event: EventObj::Event { event_type, .. } ,.. }) => {
+                Some(event_type)
             },
             _ => None
         },
@@ -80,7 +80,9 @@ async fn run_app() -> AppResult<'static> {
                 if !recording {
                     continue;
                 }
-                tracing::info!("state_changed event:\n{}", st);
+                if let Some(st) = haevlo::filter_event(st) {
+                    tracing::info!("state_changed event:\n{}", st);
+                }
             },
             else => break,
         }
