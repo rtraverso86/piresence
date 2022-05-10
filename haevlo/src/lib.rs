@@ -79,9 +79,9 @@ pub async fn append_event(msg: WsMessage , file: &mut Option<File>) -> io::Resul
     use hass::serde_yaml;
     use tokio::io::AsyncWriteExt;
     if let Some(msg) = filter_event(msg) {
-        tracing::info!("state_changed event:\n{}", msg);
+        tracing::debug!("raw state_changed event:\n{}", msg);
         if let Ok(yaml) = serde_yaml::to_string(&msg) {
-            tracing::debug!("YAML EVENT:\n{}", yaml);
+            tracing::info!("received new state_change event:\n{}", yaml);
             if let Some(file) = file {
                 let _ = file.write(yaml.as_bytes()).await?;
             }
