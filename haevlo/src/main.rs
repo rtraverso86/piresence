@@ -5,6 +5,7 @@ use hass::wsapi::WsApi;
 use hass::json::{WsMessage, EventType, EventObj};
 use tokio;
 use tokio::sync::mpsc::Receiver;
+use tokio::signal;
 use tracing_subscriber;
 use haevlo::{self, ExitCode};
 
@@ -84,9 +85,15 @@ async fn run_app() -> AppResult<'static> {
                     tracing::info!("state_changed event:\n{}", st);
                 }
             },
+            _ = signal::ctrl_c() => {
+                tracing::info!("CTRL-C detected, shutting down");
+                break;
+            },
             else => break,
         }
     }
+
+    manager.shutdown().await;
 
     Ok(())
 }

@@ -72,16 +72,13 @@ pub async fn register_control_events(api: &WsApi) -> error::Result<Receiver<WsMe
 }
 
 pub fn filter_event(msg: WsMessage) -> Option<WsMessage> {
-    use hass::serde_json::value::{self, Value};
-    match &msg {
-        WsMessage::Event { event: EventObj::Event { data, ..}, .. } => {
-            if let Some(device_class) = data.pointer("/new_state/attributes/device_class") {
-                if device_class.is_string() && device_class.as_str().unwrap() == "motion" {
-                    return Some(msg);
-                }
+    use hass::serde_json::value::Value;
+    if let WsMessage::Event { event: EventObj::Event { data, ..}, .. } = &msg {
+        if let Some(Value::String(device_class)) = data.pointer("/new_state/attributes/device_class") {
+            if device_class == "motion" {
+                return Some(msg);
             }
-        },
-        _ => ()
-    };
+        }
+    }
     None
 }
