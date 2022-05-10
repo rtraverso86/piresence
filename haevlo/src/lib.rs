@@ -1,11 +1,11 @@
-use std::fmt::{Display, Write};
-use std::process;
+use clap::Args;
 use clap::Parser;
 use hass::WsMessage;
-use hass::error::{self, Error};
+use hass::error;
 use hass::json::{EventType, EventObj};
-use hass::sync::shutdown::Shutdown;
 use hass::wsapi::WsApi;
+use tokio::fs::File;
+use tokio::io;
 use tokio::sync::mpsc::Receiver;
 
 /// Command-line arguments for the binary
@@ -30,6 +30,11 @@ pub struct CmdArgs {
     /// to quit.
     #[clap(long)]
     pub use_events: bool,
+
+    #[clap(long, default_value = ".")]
+    pub output_folder: String,
+
+    pub test_name: String,
 }
 
 impl CmdArgs {
@@ -44,26 +49,13 @@ pub enum ExitCode {
     ConnectionError,
     ControlSubscriptionError,
     StateSubscriptionError,
+    OpenFileError,
 }
 
 impl ExitCode {
     pub fn is_success(&self) -> bool {
         *self == ExitCode::Success
     }
-}
-
-pub async fn build_wsapi(args: &CmdArgs, shutdown: Shutdown) -> error::Result<WsApi> {
-    let api = WsApi::new_unsecure(&args.host, args.port, &args.token, shutdown).await?;
-
-    let control_events = if args.use_events {
-        Some(register_control_events(&api).await?)
-    } else {
-        None
-    };
-
-    let state_events = api.subscribe_event(Some(EventType::StateChanged)).await?;
-
-    Ok(api)
 }
 
 pub async fn register_control_events(api: &WsApi) -> error::Result<Receiver<WsMessage>> {
@@ -81,4 +73,19 @@ pub fn filter_event(msg: WsMessage) -> Option<WsMessage> {
         }
     }
     None
+}
+
+pub async fn append_event(msg: WsMessage , file: &mut Option<File>) -> io::Result<()> {
+    use hass::serde_yaml;
+    use tokio::io::AsyncWriteExt;
+    if let Some(msg) = filter_event(msg) {
+        tracing::info!("state_changed event:\n{}", msg);
+        if let Ok(yaml) = serde_yaml::to_string(&msg) {
+            tracing::debug!("YAML EVENT:\n{}", yaml);
+            if let Some(file) = file {
+                let _ = file.write(yaml.as_bytes()).await?;
+            }
+        }
+    }
+    Ok(())
 }
