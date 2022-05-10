@@ -19,6 +19,9 @@ pub enum WsMessage {
 
     // Command Phase
     Result {
+        id: Id,
+        success: bool,
+
         #[serde(flatten)]
         data: ResultBody,
     },
@@ -26,13 +29,14 @@ pub enum WsMessage {
     // Subscribe Events
     SubscribeEvents { id: Id, event_type: Option<EventType> },
     Event {
-        #[serde(flatten)]
-        data: EventBody,
+        id: Id,
+        event: EventObj,
     },
     UnsubscribeEvents {id: Id, subscription: Id },
     FireEvent {
-        #[serde(flatten)]
-        data: FireEventBody,
+        id: Id,
+        event_type: EventType,
+        event_data: Option<serde_json::Value>,
     },
 
     // Calling a service
@@ -54,31 +58,37 @@ impl WsMessage {
     pub fn id(&self) -> Option<Id> {
         use WsMessage::*;
         match self {
-            Result { data } => Some(data.id),
+            //  Variants with an Id
+            Result { id, .. } => Some(*id),
             SubscribeEvents { id, .. } => Some(*id),
             UnsubscribeEvents { id, .. } => Some(*id),
-            Event { data } => Some(data.id),
-            FireEvent { data } => Some(data.id),
+            Event { id, .. } => Some(*id),
+            FireEvent { id, .. } => Some(*id),
             GetStates { id } => Some(*id),
             Ping { id } => Some(*id),
             Pong { id } => Some(*id),
-            _ => None, // other message types don't have any Id
+
+            //  Variants without
+            //* (avoid `_ => None` to get compile errors when missing some )
+            Auth { .. } => None,
+            AuthInvalid { .. } => None,
+            AuthOk { .. } => None,
+            AuthRequired { .. } => None,
         }
     }
 
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
-pub struct ResultBody {
-    pub id: Id,
-    pub success: bool,
-    pub result: Option<ResultType>,
-    pub error: Option<ErrorObject>,
+#[serde(untagged, rename_all = "snake_case")]
+pub enum ResultBody {
+    Result { result: Option<ResultObject> },
+    Error { error: ErrorObject },
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 #[serde(untagged)]
-pub enum ResultType {
+pub enum ResultObject {
     Object { context: ContextObject },
     Array(Vec<serde_json::Value>),
 }
@@ -97,31 +107,21 @@ pub struct ErrorObject {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
-pub struct EventBody {
-    pub id: Id,
-    pub event: EventObject,
-}
-
-#[derive(Serialize, Deserialize, Default, PartialEq, Eq, Debug)]
-pub struct EventObject {
-    // From subscribe_events
-    pub data: Option<serde_json::Value>,
-    pub event_type: Option<EventType>,
-    pub time_fired: Option<DateTime<Utc>>,
-    pub origin: Option<String>,
-
-    // From subscribe_trigger
-    pub variables: Option<serde_json::Value>,
-
-    // Both subscribe_events and susbscribe_trigger
-    pub context: ContextObject,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
-pub struct FireEventBody {
-    pub id: Id,
-    pub event_type: EventType,
-    pub event_data: Option<serde_json::Value>,
+#[serde(untagged)]
+pub enum EventObj {
+    // https://developers.home-assistant.io/docs/api/websocket/#subscribe-to-events
+    Event {
+        data: serde_json::Value,
+        event_type: EventType,
+        time_fired: DateTime<Utc>,
+        origin: String,
+        context: ContextObject,
+    },
+    // https://developers.home-assistant.io/docs/api/websocket/#subscribe-to-trigger
+    Trigger {
+        variables: serde_json::Value,
+        context: ContextObject,
+    },
 }
 
 /// Event types as described on the Home Assistant webiste at
@@ -189,7 +189,7 @@ pub fn serialize(msg: &WsMessage) -> Result<String, Error> {
 
 /// Deserialize from JSON a message.
 pub fn deserialize(json: &str) -> Result<WsMessage, Error> {
-    Ok(serde_json::from_str(&json)?)
+    Ok(serde_json::from_str(json)?)
 }
 
 /***** TESTS *****************************************************************/
@@ -236,11 +236,10 @@ mod tests {
 
     serde_test!(msg_auth_result_simple,
         WsMessage::Result {
-            data: ResultBody {
-                id: 18,
-                success: false,
+            id: 18,
+            success: false,
+            data: ResultBody::Result {
                 result: None,
-                error: None,
             }
         },
         "{
@@ -252,17 +251,16 @@ mod tests {
 
     serde_test!(msg_auth_result_object,
         WsMessage::Result {
-            data: ResultBody {
-                id: 18,
-                success: true,
-                result: Some(ResultType::Object {
+            id: 18,
+            success: true,
+            data: ResultBody::Result {
+                result: Some(ResultObject::Object {
                     context: ContextObject {
                         id: String::from("326ef27d19415c60c492fe330945f954"),
                         parent_id: None,
                         user_id: Some(String::from("31ddb597e03147118cf8d2f8fbea5553"))
                     }
                 }),
-                error: None
             }
         },
         "{
@@ -280,21 +278,13 @@ mod tests {
 
         serde_test!(msg_auth_result_array,
             WsMessage::Result {
-                data: ResultBody {
-                    id: 18,
-                    success: true,
-                    result: Some(ResultType::Array(vec![
+                id: 18,
+                success: true,
+                data: ResultBody::Result {
+                    result: Some(ResultObject::Array(vec![
                         serde_json::from_str("{\"some_field\": \"some_data\"}").unwrap(),
                         serde_json::from_str("{\"some_field\": \"some_other_data\"}").unwrap()
-                    ])),/*
-
-                        context: ContextObject {
-                            id: String::from("326ef27d19415c60c492fe330945f954"),
-                            parent_id: None,
-                            user_id: Some(String::from("31ddb597e03147118cf8d2f8fbea5553"))
-                        }
-                    }),*/
-                    error: None
+                    ])),
                 }
             },
             "{
@@ -353,20 +343,19 @@ mod tests {
         "{ \"id\": 18, \"type\": \"subscribe_events\", \"event_type\": \"state_changed\" }");
 
     serde_test!(msg_event,
-        WsMessage::Event { data: EventBody {
+        WsMessage::Event {
             id: 18,
-            event: EventObject {
-                data: Some(serde_json::from_str("{\"some_field\": \"some_data\"}").unwrap()),
-                event_type: Some(EventType::StateChanged),
-                time_fired: Some(DateTime::from(DateTime::parse_from_rfc3339("2022-01-09T10:33:04.391956+01:00").unwrap())),
-                origin: Some(String::from("LOCAL")),
+            event: EventObj::Event {
+                data: serde_json::from_str("{\"some_field\": \"some_data\"}").unwrap(),
+                event_type: EventType::StateChanged,
+                time_fired: DateTime::from(DateTime::parse_from_rfc3339("2022-01-09T10:33:04.391956+01:00").unwrap()),
+                origin: String::from("LOCAL"),
                 context: ContextObject {
                     id: String::from("9b263f9e4e899819a0515a97f6ddfb47"),
                     ..Default::default()
                 },
-                ..Default::default()
             }
-        }},
+        },
         "{ \"id\": 18, \"type\": \"event\", \"event\": {
             \"data\": {\"some_field\": \"some_data\"},
             \"event_type\": \"state_changed\",
@@ -382,11 +371,11 @@ mod tests {
         "{\"id\": 345, \"type\": \"unsubscribe_events\", \"subscription\": 234}");
 
     serde_test!(msg_fire_event,
-        WsMessage::FireEvent { data: FireEventBody {
+        WsMessage::FireEvent {
             id: 56412,
             event_type: EventType::HomeassistantStarted,
             event_data: None,
-        }},
+        },
         "{\"id\": 56412, \"type\": \"fire_event\",\"event_type\": \"homeassistant_started\"}");
 
 

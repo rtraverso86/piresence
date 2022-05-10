@@ -230,10 +230,10 @@ impl WsApi {
 
 fn result_or_error<T>(reply: WsMessage, result: T) -> Result<T> {
     match reply {
-        WsMessage::Result { data: json::ResultBody { success: true, .. } } => {
+        WsMessage::Result { success: true, data: json::ResultBody::Result { .. }, .. } => {
             Ok(result)
         },
-        WsMessage::Result { data: json::ResultBody { success: false, error, .. } } => {
+        WsMessage::Result { success: false, data: json::ResultBody::Error { error }, ..} => {
             Err(Error::from(error))
         },
         u => {
