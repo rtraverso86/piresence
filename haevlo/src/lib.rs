@@ -1,3 +1,4 @@
+use std::fmt::{Display, Write};
 use std::process;
 use clap::Parser;
 use hass::WsMessage;
@@ -37,10 +38,18 @@ impl CmdArgs {
     }
 }
 
-#[derive(Copy, Clone)]
-pub enum ExitCodes {
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum ExitCode {
     Success = 0,
-    CouldNotConnect = 1,
+    ConnectionError,
+    ControlSubscriptionError,
+    StateSubscriptionError,
+}
+
+impl ExitCode {
+    pub fn is_success(&self) -> bool {
+        *self == ExitCode::Success
+    }
 }
 
 pub async fn build_wsapi(args: &CmdArgs, shutdown: Shutdown) -> error::Result<WsApi> {
@@ -57,52 +66,8 @@ pub async fn build_wsapi(args: &CmdArgs, shutdown: Shutdown) -> error::Result<Ws
     Ok(api)
 }
 
-pub async fn run(args: CmdArgs, shutdown: Shutdown) {
-    let use_events = self.args.use_events;
-    let mut recording = !use_events;
-    loop {
-        tokio::select! {
-            Some(ev) = self.registered_events(), if use_events => match ev {
-                EventType::HaevloStart => {
-                    recording = true;
-                },
-                EventType::HaevloStop => {
-                    recording = false;
-                },
-                _ => (),
-            },
-            Some(st) = self.state_events.recv() => {
-                if !recording {
-                    continue;
-                }
-                
-            },
-            else => break,
-        }
-    }
-}
-
-async fn registered_events(&mut self) -> Option<EventType> {
-    match self.control_events.as_mut() {
-        None => None,
-        Some(rx) => match rx.recv().await {
-            Some(WsMessage::Event { data }) => {
-                data.event.event_type
-            },
-            _ => None
-        },
-    }
-}
-
-
-
-async fn register_control_events(api: &WsApi) -> error::Result<Receiver<WsMessage>> {
+pub async fn register_control_events(api: &WsApi) -> error::Result<Receiver<WsMessage>> {
     let events = [EventType::HaevloStart, EventType::HaevloStop];
     api.subscribe_events(&events).await
-}
-
-pub fn exit_error(err: Error, when: &str) {
-    tracing::error!("error while {}: {}", when, err);
-    process::exit(-1);
 }
 
