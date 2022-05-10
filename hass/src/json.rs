@@ -54,6 +54,7 @@ impl WsMessage {
     pub fn id(&self) -> Option<Id> {
         use WsMessage::*;
         match self {
+            Result { data } => Some(data.id),
             SubscribeEvents { id, .. } => Some(*id),
             UnsubscribeEvents { id, .. } => Some(*id),
             Event { data } => Some(data.id),
