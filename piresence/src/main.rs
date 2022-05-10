@@ -11,9 +11,6 @@ async fn main() {
     let args = CmdArgs::parse_args();
     tracing::trace!("commandline args: {:?}", args);
     //hass::wsconnect(&args.host, args.port, &args.token);
-    let mut ws = WsApi::new_unsecure(&args.host, args.port, &args.token).await.unwrap();
-    ws.subscribe_event(Some(json::EventType::StateChanged)).await.expect("could not subscribe");
-    ws.receive_events().await.expect("could not receive events");
 
     /*
     let host = env::var("HA_HOST").expect("environment variable missing: HA_HOST");
