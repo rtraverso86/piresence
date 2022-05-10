@@ -144,6 +144,7 @@ impl WsApiMessenger {
 
     fn register(&mut self, id: Id, reg_sender: mpsc::Sender<WsMessage>) {
         // drop the old sender, if present
+        tracing::debug!("registered receiver={:p} for id={}", &reg_sender, id);
         let _ = self.receivers.insert(id, reg_sender);
     }
 
@@ -162,6 +163,7 @@ impl WsApiMessenger {
             |id| { self.receivers.get(&id) });
 
         if let Some(receiver) = receiver {
+            tracing::debug!("dispatch to receiver={:p} msg with id={:?}", receiver, id);
             if let Err(e) = receiver.send(msg).await {
                 if let Some(id) = id {
                     self.receivers.remove(&id);

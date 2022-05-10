@@ -164,6 +164,7 @@ impl WsApi {
     }
 
     async fn send_command(&self, cmd: Command) -> Result<()> {
+        tracing::debug!("sending command {:?}", cmd);
         match self.tx.send(cmd).await {
             Ok(()) => {
                 Ok(())
@@ -185,16 +186,19 @@ impl WsApi {
 
     async fn registration(&self) -> Result<(Id, mpsc::Receiver<WsMessage>)> {
         let (tx, rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
-        self.registration_ch(tx).await.map(|(id)| { (id, rx) })
+        self.registration_ch(tx).await.map(|id| { (id, rx) })
     }
 
     pub async fn subscribe_event(&self, event_type: Option<json::EventType>) -> Result<mpsc::Receiver<WsMessage>> {
         let (id, mut rx) = self.registration().await?;
+        tracing::debug!("subscribe_event: registration()=({}, {:p})", id, &rx);
         self.send_command(Command::Message(WsMessage::SubscribeEvents { id, event_type })).await?;
+        tracing::debug!("subscribe_event: send_command()");
 
         let reply = rx.recv().await
             .ok_or(Error::InternalError { cause: anyhow!("missing response")})?;
 
+        tracing::debug!("subscribe_event: recv()={:?}", &reply);
         result_or_error(reply, rx)
     }
 
