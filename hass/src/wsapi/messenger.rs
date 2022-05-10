@@ -8,7 +8,7 @@ use anyhow::anyhow;
 use futures_util::{SinkExt, StreamExt};
 use tokio::{
     sync::mpsc,
-    time,
+    time::{self, MissedTickBehavior},
 };
 use tokio_tungstenite::{
     self,
@@ -62,6 +62,8 @@ impl WsApiMessenger {
 
     pub async fn run(mut self) -> Result<()> {
         let mut keepalive = time::interval(Duration::from_secs(KEEPALIVE_INTERVAL_SEC));
+        keepalive.tick().await;
+        keepalive.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
         loop {
             tokio::select! {
@@ -70,6 +72,7 @@ impl WsApiMessenger {
                     Some(cmd) => match cmd {
                         Command::Message(msg) => {
                             self.send(msg).await?;
+                            keepalive.reset();
                         },
                         Command::Register(id, reg_sender) => {
                             self.register(id, reg_sender);
@@ -109,6 +112,7 @@ impl WsApiMessenger {
                     self.send_ping().await?;
                 },
 
+                // System-wide shutdown event
                 _ = self.shutdown.recv() => {
                     tracing::info!("shutdown request");
                     break;
@@ -161,6 +165,7 @@ impl WsApiMessenger {
         let receiver = id.map_or_else(
             || self.unhandled.as_ref(),
             |id| { self.receivers.get(&id) });
+
 
         if let Some(receiver) = receiver {
             tracing::debug!("dispatch to receiver={:p} msg with id={:?}", receiver, id);
