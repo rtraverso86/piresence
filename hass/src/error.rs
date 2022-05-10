@@ -51,9 +51,15 @@ pub enum Error {
 impl From<Option<ErrorObject>> for Error {
     fn from(err: Option<ErrorObject>) -> Self {
         if let Some(e) = err {
-            Error::ProtocolError(e.code, e.message)
+            Error::from(e)
         } else {
             Error::ProtocolError(String::from("None"), String::from("None"))
         }
+    }
+}
+
+impl From<ErrorObject> for Error {
+    fn from(err: ErrorObject) -> Self {
+        Error::ProtocolError(err.code, err.message)
     }
 }

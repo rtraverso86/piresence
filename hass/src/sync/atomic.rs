@@ -20,6 +20,12 @@ impl AtomicId {
     }
 }
 
+impl Default for AtomicId {
+    fn default() -> Self {
+        AtomicId::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

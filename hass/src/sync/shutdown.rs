@@ -65,3 +65,9 @@ impl Manager {
         let _ = self.shutdown_complete_rx.recv().await;
     }
 }
+
+impl Default for Manager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
