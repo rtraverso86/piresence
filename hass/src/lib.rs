@@ -1,8 +1,11 @@
 pub mod sync;
 
 pub mod json;
+#[cfg(feature = "serde_yaml")]
+pub mod yaml;
 pub mod wsapi;
 pub mod error;
+
 
 // Convenience exports
 
