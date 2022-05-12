@@ -54,6 +54,19 @@ pub enum WsMessage {
 
 impl WsMessage {
 
+    /// Creates a new `WsMessage::Result` with the given `id`,
+    /// the `success` field set to `true`, and data set to an
+    /// empty `ResultBody::Result`.
+    pub fn new_result_success(id: Id) -> WsMessage {
+        WsMessage::Result {
+            id,
+            success: true,
+            data: ResultBody::Result {
+                result: None
+            }
+        }
+    }
+
     /// Retrieves the `Id` associated to the message, if any.
     pub fn id(&self) -> Option<Id> {
         use WsMessage::*;
