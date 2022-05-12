@@ -69,11 +69,51 @@ impl WsMessage {
             Pong { id } => Some(*id),
 
             //  Variants without
-            //* (avoid `_ => None` to get compile errors when missing some )
+            //* (avoid `_ => None` to get compile errors when missing some variants)
             Auth { .. } => None,
             AuthInvalid { .. } => None,
             AuthOk { .. } => None,
             AuthRequired { .. } => None,
+        }
+    }
+
+    /// Sets a new `Id` associated to the message, if possible, otherwise return
+    /// the message as-is.
+    pub fn set_id(mut self, new_id: Id) -> WsMessage {
+        use WsMessage::*;
+        match self {
+            //  Variants with an Id
+            Result { success, data, .. } => {
+                Result { id: new_id, success, data }
+            },
+            SubscribeEvents { event_type, .. } => {
+                SubscribeEvents { id: new_id, event_type }
+            },
+            UnsubscribeEvents { subscription, .. } => {
+                UnsubscribeEvents { id: new_id, subscription }
+            },
+            Event { event, .. } => {
+                Event { id: new_id, event}
+            },
+            FireEvent { event_data, event_type, .. } => {
+                FireEvent { id: new_id, event_data, event_type}
+            },
+            GetStates { .. } => {
+                GetStates { id: new_id }
+            },
+            Ping { .. } => {
+                Ping { id: new_id }
+            },
+            Pong { id } => {
+                Pong { id: new_id }
+            },
+
+            //  Variants without
+            //* (avoid `_ => self` to get compile errors when missing some variants)
+            Auth { .. } => self,
+            AuthInvalid { .. } => self,
+            AuthOk { .. } => self,
+            AuthRequired { .. } => self,
         }
     }
 
