@@ -1,19 +1,28 @@
+//! Atomic data types for shared memory that do not use locking
+//! 
+//! The structs and types provided by this module use Rust atomic
+//! types for providing shared memory access to raw types used by
+//! `hass`.
 use std::sync::atomic::{self, AtomicU64};
 use crate::json::Id;
 
-/// Lightweight atomic counter that generates `crate::json::Id`
+/// An atomic unique [crate::json::Id] generator.
+/// 
+/// Lightweight atomic counter that generates [crate::json::Id]
 /// incrementally, starting from `0`.
 #[derive(Debug)]
 pub struct AtomicId(AtomicU64);
 
 impl AtomicId {
     /// Create a new `AtomicId`.
+    /// 
     /// The sequence of identifiers starts from `0`.
     pub fn new() -> AtomicId {
         AtomicId(AtomicU64::new(1))
     }
 
     /// Returns the next unique `Id`.
+    /// 
     /// After reaching `u64::MAX`, `next()` will start over from `0`.
     pub fn next(&self) -> Id {
         self.0.fetch_add(1, atomic::Ordering::SeqCst) as Id
