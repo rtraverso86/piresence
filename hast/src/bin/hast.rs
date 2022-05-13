@@ -1,15 +1,10 @@
-use std::fs::File;
-use std::{io, sync::Arc};
-use hass::serde::Deserialize;
-use hass::serde_yaml;
-use hass::sync::shutdown;
-use hass::{WsMessage, json::Id};
-use hast::{self, HastConfig, Hast};
 use clap::{self, StructOpt};
+use hass::sync::shutdown;
+use hast::{self, HastConfig, Hast};
+use std::io;
+use tokio::{self, signal};
+use tokio_tungstenite::tungstenite::Result;
 use tracing_subscriber;
-use tokio::{self, net::{TcpListener, TcpStream}, sync::mpsc::{self, UnboundedSender}};
-use tokio_tungstenite::tungstenite::{Result, Message};
-use futures_util::{StreamExt, SinkExt};
 
 #[derive(clap::Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -30,27 +25,35 @@ struct CmdArgs {
 
 impl CmdArgs {
     fn to_hast_config(&self) -> HastConfig {
-        HastConfig {
-            port: self.port,
-            token: self.token.clone(),
-            yaml_event_log: self.yaml_event_log.clone(),
-        }
+        HastConfig::new(self.port,
+            self.token.clone(),
+            self.yaml_event_log.clone())
     }
 }
 
-
 #[tokio::main]
 async fn main() -> Result<(), io::Error> {
-    // Initialize logging framework
     tracing_subscriber::fmt::init();
 
     let args = CmdArgs::parse();
+    tracing::info!("args: {:?}", args);
+
     let hast_cfg = args.to_hast_config();
     let manager = shutdown::Manager::new();
 
     let hast = Hast::new(hast_cfg, manager.subscribe());
 
-    hast.start().await;
+    tokio::spawn(async move {
+        if let Err(e) = hast.run().await {
+            tracing::error!("hast terminated with error: {}", e);
+        }
+    });
 
+    if let Err(e) = signal::ctrl_c().await {
+        tracing::error!("failed to wait for ctrl-c signal: {}", e);
+    }
+    manager.shutdown().await;
+
+    tracing::info!("all task terminated, quitting");
     Ok(())
 }
