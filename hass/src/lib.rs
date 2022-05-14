@@ -6,7 +6,7 @@ pub mod error;
 
 #[cfg(feature = "serde_yaml")]
 pub mod yaml;
-#[cfg(feature = "hast")]
+#[cfg(any(feature = "hast-client", feature = "hast-server"))]
 pub mod hast;
 
 

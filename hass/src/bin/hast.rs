@@ -1,6 +1,6 @@
 use clap::{self, StructOpt};
 use hass::sync::shutdown;
-use hass::hast::{HastConfig, Hast};
+use hass::hast::server::{HastConfig, Hast};
 use std::io;
 use tokio::{self, signal};
 use tokio_tungstenite::tungstenite::Result;

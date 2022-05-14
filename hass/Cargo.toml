@@ -32,6 +32,7 @@ tracing-test = { version = "0.2.1" }
 
 [features]
 default = []
-hast = ["serde_yaml", "dep:clap"]
-hast-bin = ["hast"]
+hast-client = []
+hast-server = ["hast-client", "serde_yaml"]
+hast-bin = ["hast-server", "dep:clap"]
 serde_yaml = ["dep:serde_yaml"]
