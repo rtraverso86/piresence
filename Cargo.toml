@@ -4,5 +4,4 @@ members = [
     "piresence",
     "haevlo",
     "hass",
-    "hast",
 ]
