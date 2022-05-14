@@ -1,18 +1,100 @@
+use clap::Parser;
 use hass;
-use hass::error::Error;
+use hass::error::{self, Error};
 use hass::sync::shutdown;
 use hass::wsapi::WsApi;
 use hass::json::{WsMessage, EventType, EventObj};
 use tokio;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{self, AsyncWriteExt};
 use tokio::fs::{OpenOptions, File};
 use tokio::sync::mpsc::Receiver;
 use tokio::signal;
 use tracing_subscriber;
-use haevlo::{self, ExitCode, CmdArgs};
 
 type AppError<'a> = (ExitCode, Option<(Error, &'a str)>);
 type AppResult<'a> = Result<(), AppError<'a>>;
+
+
+/// Command-line arguments for the binary
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct CmdArgs {
+    /// Host running Home Assistant
+    #[clap(long)]
+    host: String,
+
+    /// Port where Home Assistant websockets are located
+    #[clap(long, default_value_t = 8123)]
+    port: u16,
+
+    /// Authentication token for Home Assistant
+    #[clap(long)]
+    token: String,
+
+    /// Enable event logging start/stop via HA events.
+    /// When enabled, generate a custom event `haevlo_start`
+    /// from Home Assistant to start logging, and `haevlo_stop`
+    /// to quit.
+    #[clap(long)]
+    use_events: bool,
+
+    #[clap(long, default_value = ".")]
+    output_folder: String,
+
+    test_name: String,
+}
+
+impl CmdArgs {
+    fn parse_args() -> CmdArgs {
+        CmdArgs::parse()
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+enum ExitCode {
+    Success = 0,
+    ConnectionError,
+    ControlSubscriptionError,
+    StateSubscriptionError,
+    OpenFileError,
+}
+
+impl ExitCode {
+    fn is_success(&self) -> bool {
+        *self == ExitCode::Success
+    }
+}
+
+async fn register_control_events(api: &WsApi) -> error::Result<Receiver<WsMessage>> {
+    let events = [EventType::HaevloStart, EventType::HaevloStop];
+    api.subscribe_events(&events).await
+}
+
+fn filter_event(msg: WsMessage) -> Option<WsMessage> {
+    use hass::serde_json::value::Value;
+    if let WsMessage::Event { event: EventObj::Event { data, ..}, .. } = &msg {
+        if let Some(Value::String(device_class)) = data.pointer("/new_state/attributes/device_class") {
+            if device_class == "motion" {
+                return Some(msg);
+            }
+        }
+    }
+    None
+}
+
+async fn append_event(msg: WsMessage , file: &mut Option<File>) -> io::Result<()> {
+    if let Some(msg) = filter_event(msg) {
+        tracing::debug!("raw state_changed event:\n{}", msg);
+        if let Ok(yaml) = serde_yaml::to_string(&msg) {
+            tracing::info!("received new state_change event:\n{}", yaml);
+            if let Some(file) = file {
+                let _ = file.write(yaml.as_bytes()).await?;
+            }
+        }
+    }
+    Ok(())
+}
+
 
 async fn recv_ctrl_events(rx_opt: &mut Option<Receiver<WsMessage>>) -> Option<EventType> {
     match rx_opt.as_mut() {
@@ -34,7 +116,7 @@ async fn run_app() -> AppResult<'static> {
     // Initialize logging framework
     tracing_subscriber::fmt::init();
 
-    let args = haevlo::CmdArgs::parse_args();
+    let args = CmdArgs::parse_args();
     tracing::debug!("commandline args: {:?}", args);
 
     let manager = shutdown::Manager::new();
@@ -47,7 +129,7 @@ async fn run_app() -> AppResult<'static> {
     };
 
     let mut control_events = if args.use_events {
-        match haevlo::register_control_events(&api).await {
+        match register_control_events(&api).await {
             Ok(rx) => Some(rx),
             Err(e) => {
                 return app_err(ExitCode::ControlSubscriptionError, e, "could not subscribe to events: haevlo_start, haevlo_stop");
@@ -93,7 +175,7 @@ async fn run_app() -> AppResult<'static> {
                 if !recording {
                     continue;
                 }
-                if let Err(e) = haevlo::append_event(st, &mut file_opt).await {
+                if let Err(e) = append_event(st, &mut file_opt).await {
                     tracing::error!("IO error appending event to output file: {}", e);
                 }
             },

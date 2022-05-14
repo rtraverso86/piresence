@@ -1,14 +1,20 @@
 [package]
+authors = ["R. Traverso"]
 name = "hass"
 version = "0.1.0"
 edition = "2021"
-authors = ["R. Traverso"]
+autobins = false
 description = "Asynchronous interaction with Home Assistant"
 
 [[bin]]
 name = "hast"
 path = "src/bin/hast.rs"
 required-features = ["hast-bin"]
+
+[[bin]]
+name = "haevlo"
+path = "src/bin/haevlo.rs"
+required-features = ["haevlo-bin"]
 
 [dependencies]
 anyhow = "1.0"
@@ -32,6 +38,7 @@ tracing-test = { version = "0.2.1" }
 
 [features]
 default = []
+haevlo-bin = ["serde_yaml", "dep:clap"]
 hast-client = []
 hast-server = ["hast-client", "serde_yaml"]
 hast-bin = ["hast-server", "dep:clap"]
