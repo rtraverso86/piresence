@@ -5,8 +5,8 @@ edition = "2021"
 
 [[bin]]
 name = "hast"
-path = "bin/hast.rs"
-required-features = ["hast"]
+path = "src/bin/hast.rs"
+required-features = ["hast-bin"]
 
 [dependencies]
 anyhow = "1.0"
@@ -30,5 +30,6 @@ tracing-test = { version = "0.2.1" }
 
 [features]
 default = []
-serde_yaml = ["dep:serde_yaml"]
 hast = ["serde_yaml", "dep:clap"]
+hast-bin = ["hast"]
+serde_yaml = ["dep:serde_yaml"]

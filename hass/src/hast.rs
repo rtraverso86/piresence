@@ -3,9 +3,10 @@ use std::net::SocketAddr;
 use std::sync::Mutex;
 use std::{io, sync::Arc};
 use serde::{Serialize, Deserialize};
+use serde_json;
 use serde_yaml;
 use crate::sync::shutdown::Shutdown;
-use crate::WsMessage;
+use crate::json::{self, WsMessage};
 use tokio::{self, net::{TcpListener, TcpStream}, sync::mpsc::{self, UnboundedSender}};
 use tokio_tungstenite::tungstenite::{Result, Message};
 use futures_util::{StreamExt, SinkExt};
@@ -154,7 +155,7 @@ async fn accept_connection(stream: TcpStream, cfg: HastConnConfig, shutdown: Shu
     while ! cfg.skip_hast_messages() {
         tokio::select! {
             Some(msg) = sk_read.next() => {
-                match hass::serde_json::from_str(msg?.to_text()?).unwrap() {
+                match serde_json::from_str(msg?.to_text()?).unwrap() {
                     HastMessage::Name(n) => {
                         cfg.name = Some(n);
                     }
@@ -182,7 +183,7 @@ async fn accept_connection(stream: TcpStream, cfg: HastConnConfig, shutdown: Shu
                     break;
                 }
                 tracing::info!("{}: {}: SENDING:\n{:?}", addr, test_name, &msg);
-                let msg = hass::json::serialize(&msg.unwrap()).unwrap();
+                let msg = json::serialize(&msg.unwrap()).unwrap();
                 sk_write.send(Message::Text(msg)).await.unwrap();
             },
 
@@ -194,7 +195,7 @@ async fn accept_connection(stream: TcpStream, cfg: HastConnConfig, shutdown: Shu
                 if !msg.is_text() {
                     continue;
                 }
-                if let Ok(wsmsg) = hass::json::deserialize(msg.to_text()?) {
+                if let Ok(wsmsg) = json::deserialize(msg.to_text()?) {
                     tracing::info!("{}: {}: RECEIVED:\n{:?}", addr, test_name, wsmsg);
                     let tx_cl = tx.clone();
                     let cfg_cl = cfg.clone();
@@ -221,7 +222,7 @@ async fn accept_connection(stream: TcpStream, cfg: HastConnConfig, shutdown: Shu
 }
 
 async fn handle_message(wsmsg: WsMessage, tx: UnboundedSender<WsMessage>, cfg: Arc<HastConnConfig>, addr: &SocketAddr, _shutdown: Shutdown) -> Result<()> {
-    use hass::json::{WsMessage::*, ResultBody, ErrorObject};
+    use crate::json::{WsMessage::*, ResultBody, ErrorObject};
 
     let test_name = &cfg.test_name();
     let send = |msg| {
