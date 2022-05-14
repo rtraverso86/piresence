@@ -18,16 +18,25 @@ struct CmdArgs {
     #[clap(long, default_value = "letmein")]
     pub token: String,
 
-    /// Path to YAML event log file
-    pub yaml_event_log: String,
+    /// Base directory where YAML event log files are stored
+    #[clap(long, default_value = ".")]
+    pub yaml_dir: String,
+
+    /// Filename of the YAML event log to run
+    pub yaml_scenario: Option<String>,
 
 }
 
 impl CmdArgs {
     fn to_hast_config(&self) -> HastConfig {
-        HastConfig::new(self.port,
-            self.token.clone(),
-            self.yaml_event_log.clone())
+        let mut hc = HastConfig::new(self.port,
+                self.token.clone(),
+                self.yaml_dir.clone());
+        if let Some(scenario) = self.yaml_scenario.as_ref() {
+            hc.yaml_scenario = Some(scenario.clone());
+            hc.skip_hast_messages = true;
+        }
+        hc
     }
 }
 
