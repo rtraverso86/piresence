@@ -68,11 +68,17 @@ async fn main() -> Result<(), io::Error> {
 
     let hast = Hast::new(hast_cfg, manager.subscribe());
 
+    let mut startup_notifier = hast.startup_notifier();
+
+    tracing::debug!("spawning main task");
     tokio::spawn(async move {
         if let Err(e) = hast.run().await {
             tracing::error!("hast terminated with error: {}", e);
         }
     });
+
+    let _ = startup_notifier.changed().await;
+    tracing::info!("hast service ready");
 
     if let Err(e) = signal::ctrl_c().await {
         tracing::error!("failed to wait for ctrl-c signal: {}", e);

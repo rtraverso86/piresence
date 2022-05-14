@@ -15,6 +15,7 @@ use std::{io, sync::Arc};
 use serde::{Serialize, Deserialize};
 use serde_json;
 use serde_yaml;
+use tokio::sync::watch;
 use crate::sync::shutdown::Shutdown;
 use crate::json::{self, WsMessage};
 use tokio::{self, net::{TcpListener, TcpStream}, sync::mpsc::{self, UnboundedSender}};
@@ -135,6 +136,7 @@ impl HastConnConfig {
 pub struct Hast {
     cfg: Arc<Box<HastConfig>>,
     shutdown: Shutdown,
+    startup: Option<watch::Sender<()>>,
 }
 
 impl Hast {
@@ -143,8 +145,20 @@ impl Hast {
     pub fn new(cfg: HastConfig, shutdown: Shutdown) -> Hast {
         Hast {
             cfg: Arc::new(Box::new(cfg)),
+            startup: Some(watch::channel(()).0),
             shutdown,
         }
+    }
+
+    /// Returns a watch channel that may be used to wait for the completion of [Hass]'s startup.
+    /// 
+    /// The corresponding sender will be dropped as soon as all services are up and running listening
+    /// on their respective ports.
+    pub fn startup_notifier(&self) -> watch::Receiver<()> {
+        self.startup
+            .as_ref()
+            .and_then(|startup| Some(startup.subscribe()) )
+            .unwrap() // we're sure it's safe, as run() who takes `self.startup` consumes `self`
     }
 
     /// Consumes the [Hast] instance and starts the server
@@ -153,6 +167,10 @@ impl Hast {
 
         let listener = TcpListener::bind(&addr).await?;
         tracing::info!("hast: listening on {}", addr);
+
+        if let Some(startup) = self.startup.take() {
+            drop(startup); // send startup signal
+        }
 
         loop {
             tokio::select! {
