@@ -99,8 +99,9 @@ async fn run_app(args: CmdArgs) -> AppResult {
         .map_err(|e| err(ExitCode::ConnectionError, e, "could not connect to HA WebSocket"))?;
 
     let control_events = if args.use_events {
-        Some(register_control_events(&api).await
-            .map_err(|e| err(ExitCode::ControlSubscriptionError, e, "could not subscribe to events: haevlo_start, haevlo_stop"))?)
+        register_control_events(&api).await
+            .map_err(|e| err(ExitCode::ControlSubscriptionError, e, "could not subscribe to events: haevlo_start, haevlo_stop"))
+            .map(Option::Some)?
     } else {
         None
     };
