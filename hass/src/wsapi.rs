@@ -5,21 +5,17 @@ use std::sync::{
 };
 
 use anyhow::anyhow;
-use futures_util::{SinkExt, StreamExt};
 use tokio::{
     net::TcpStream,
     sync::mpsc,
 };
 use tokio_tungstenite::{
     self,
-    tungstenite,
     connect_async,
     MaybeTlsStream,
 };
 use tracing;
-use tungstenite::{
-    Message,
-};
+
 use url::Url;
 
 use crate::error::{Error, Result};
@@ -75,7 +71,9 @@ impl WsApi {
         let (unhandled_tx, unhandled_rx) = mpsc::channel(MPSC_CHANNEL_BOUND);
         tokio::spawn(async move {
             let messenger = WsApiMessenger::new(rx, socket, id2, Some(unhandled_tx), shutdown);
-            messenger.run().await;
+            if let Err(e) = messenger.run().await {
+                tracing::error!("messenger task fatal error: {}", e);
+            }
             tracing::info!("messenger task terminated");
         });
 

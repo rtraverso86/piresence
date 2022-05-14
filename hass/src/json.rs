@@ -92,7 +92,7 @@ impl WsMessage {
 
     /// Sets a new `Id` associated to the message, if possible, otherwise return
     /// the message as-is.
-    pub fn set_id(mut self, new_id: Id) -> WsMessage {
+    pub fn set_id(self, new_id: Id) -> WsMessage {
         use WsMessage::*;
         match self {
             //  Variants with an Id
@@ -117,7 +117,7 @@ impl WsMessage {
             Ping { .. } => {
                 Ping { id: new_id }
             },
-            Pong { id } => {
+            Pong { .. } => {
                 Pong { id: new_id }
             },
 
