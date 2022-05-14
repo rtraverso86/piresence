@@ -22,19 +22,19 @@ chrono = { version = "0.4", features = ["serde"] }
 futures-util = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-thiserror = "1.0.30"
-tokio = { version = "1.17", features = ["full"] }
+thiserror = "1.0"
+tokio = { version = "1", features = ["full"] }
 tokio-tungstenite = "0.17"
-tracing = { version = "0.1.32", features = ["log"] }
-tracing-subscriber = { version = "0.3.9", features = ["registry", "env-filter"] }
-url = "2.2.2"
+tracing = { version = "0.1", features = ["log"] }
+tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
+url = "2.2"
 
 # Optional deps
 clap = { version = "3.1", features = ["derive"], optional = true }
 serde_yaml = {version = "0.8", optional = true }
 
 [dev-dependencies]
-tracing-test = { version = "0.2.1" }
+tracing-test = { version = "0.2" }
 
 [features]
 default = []

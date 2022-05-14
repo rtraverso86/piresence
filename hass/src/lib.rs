@@ -4,9 +4,9 @@ pub mod json;
 pub mod wsapi;
 pub mod error;
 
-#[cfg(feature = "serde_yaml")]
+#[cfg(any(feature = "serde_yaml", test))]
 pub mod yaml;
-#[cfg(any(feature = "hast-client", feature = "hast-server"))]
+#[cfg(any(feature = "hast-client", feature = "hast-server", test))]
 pub mod hast;
 
 
@@ -20,5 +20,5 @@ pub use url;
 pub use serde;
 pub use serde_json;
 
-#[cfg(feature = "serde_yaml")]
+#[cfg(any(feature = "serde_yaml", test))]
 pub use serde_yaml;

@@ -9,12 +9,10 @@
 //! Please note that this module use the terms "YAML event log file" and "test scenario"
 //! interchangeably.
 
-use serde::Deserialize;
 
-#[cfg(feature = "hast-client")]
+#[cfg(any(feature = "hast-client", test))]
 pub mod client {
-    use serde::Serialize;
-    use super::*;
+    use serde::{Serialize, Deserialize};
 
     /// Initial messages sent from clients to [Hast] instances to configure the session to
     /// specific testing needs, usually by picking different scenarios when executing a
@@ -37,13 +35,13 @@ pub mod client {
 
 } // mod client
 
-#[cfg(feature = "hast-server")]
+#[cfg(any(feature = "hast-server", test))]
 pub mod server {
-    use super::*;
     use super::client::HastMessage;
     use std::fs::File;
     use std::net::SocketAddr;
     use std::{io, sync::Arc};
+    use serde::Deserialize;
     use serde_json;
     use serde_yaml;
     use tokio::sync::watch;
