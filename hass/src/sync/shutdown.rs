@@ -18,7 +18,8 @@
 //! This module derives from the [Tokio.rs documentation](https://tokio.rs/tokio/topics/shutdown)
 //! for graceful shutdown, which made use broadcast channels to
 //! propagate signals. This implementation uses watch channels instead, and the
-//! original example has been further extended with cloning of `Shutdown` instances
+//! [original example](https://github.com/tokio-rs/mini-redis/blob/master/src/shutdown.rs)
+//! has been further extended with cloning of `Shutdown` instances
 //! and with the concept of [Manager], which are aimed at making even easier the usage
 //! of this module.
 //! 
@@ -42,7 +43,7 @@
 //!     let manager = Manager::new();
 //!     let shutdown = manager.subscribe();
 //!     tokio::spawn(worker(shutdown));
-//!     thread::sleep(time::Duration::from_secs(3));
+//!     thread::sleep(time::Duration::from_secs(1));
 //!     manager.shutdown().await;
 //!     println!("main exited");
 //! }
