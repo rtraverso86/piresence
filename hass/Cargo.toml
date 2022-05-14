@@ -2,6 +2,8 @@
 name = "hass"
 version = "0.1.0"
 edition = "2021"
+authors = ["R. Traverso"]
+description = "Asynchronous interaction with Home Assistant"
 
 [[bin]]
 name = "hast"

@@ -6,15 +6,31 @@ use tokio::{self, signal};
 use tokio_tungstenite::tungstenite::Result;
 use tracing_subscriber;
 
+/// Home Assistant Surrogate Tool
+///
+/// The Home Assistant Surrogate Tool, hast for short, is a mock Home Assistant (HA)
+/// WebSocket server that supports basic end-to-end testing features.
+///
+/// Clients connecting to the mock service should expect the same behaviour of a real
+/// HA instance, with the difference that upon subscription, all events are sent in
+/// a single burst of messages to speed things up. The client should be aware of this
+/// and adjust any time-based calculation on the timestamps included in messages, rather
+/// than on real system clocks.
+/// 
+/// Another difference with real HA, is the preliminary setup phase which include new
+/// kinds of messages to customize the behaviour of the mock before actually starting
+/// the HA simulation. This phase is only available when the optional YAML_SCENARIO
+/// positional argument is not provided.
+/// Please refer to the [hass::hast] module for more details.
 #[derive(clap::Parser, Debug)]
-#[clap(author, version, about, long_about = None)]
+#[clap(author, version)]
 struct CmdArgs {
 
-    /// Port where Home Assistant websockets are located
+    /// Port used to expose the mock HA WebSocket service
     #[clap(long, default_value_t = 8123)]
     pub port: u16,
 
-    /// Authentication token required to connect
+    /// Authentication token required by the mock HA WebSocket service
     #[clap(long, default_value = "letmein")]
     pub token: String,
 

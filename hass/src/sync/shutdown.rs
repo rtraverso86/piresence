@@ -43,7 +43,7 @@
 //!     let manager = Manager::new();
 //!     let shutdown = manager.subscribe();
 //!     tokio::spawn(worker(shutdown));
-//!     thread::sleep(time::Duration::from_secs(1));
+//!     thread::sleep(time::Duration::from_millis(100));
 //!     manager.shutdown().await;
 //!     println!("main exited");
 //! }

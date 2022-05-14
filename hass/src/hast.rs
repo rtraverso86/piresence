@@ -1,3 +1,13 @@
+//! Home Assistant Surrogate Tool
+//!
+//! The `hast` module provides library tools to setup mock Home Assistant (HA)
+//! WebSocket servers, [Hast], that support basic end-to-end testing features.
+//!
+//! It is intended to be used in conjunction with `haevlo` to play out previously
+//! recorded test scenarios from real data.
+//! 
+//! Please note that this module use the terms "YAML event log file" and "test scenario"
+//! interchangeably.
 use std::fs::File;
 use std::net::SocketAddr;
 use std::sync::Mutex;
@@ -12,30 +22,57 @@ use tokio_tungstenite::tungstenite::{Result, Message};
 use futures_util::{StreamExt, SinkExt};
 use tracing;
 
+/// Initial messages sent from clients to [Hast] instances to configure the session to
+/// specific testing needs, usually by picking different scenarios when executing a
+/// batch of tests.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum HastMessage {
+    /// Set a name for the test performed in this session. By default it is empty.
     Name(String),
+
+    /// Set a specific authentication token required by this session.
     Token(String),
+
+    // Set a specific YAML event log file to be played during this session.
     Scenario(String),
+
+    /// Complete [Hast] session configuration and 
     Start,
 }
 
+/// Configuration data required to set up an instance of [Hast].
 #[derive(Debug)]
 pub struct HastConfig {
+    /// The port on which the HA WebSocket mock service will bind listening for connections.
     pub port: u16,
+
+    /// The authentication token required by the HA WebSocket mock service.
     pub token: String,
+
+    /// Base directory where YAML event log files are stored.
     pub yaml_dir: String,
+
+    /// Optionally, the default YAML event log file used for all incoming connections.
     pub yaml_scenario: Option<String>,
+
+    // When true, disable the initial configuration phase via [HastMessage] messages for
+    /// new connections.
     pub skip_hast_messages: bool,
+
+    /// The HA version declared by the HA WebSocket mock.
     ha_version: String,
 }
 
 impl HastConfig {
+    /// Create a new configuration with an empty [HastConfig::yaml_scenario].
     pub fn new(port: u16, token: String, yaml_dir: String) -> HastConfig {
         HastConfig::new_with_scenario(port, token, yaml_dir, None)
     }
 
+    /// Create a new configuration with an explicit [HastConfig::yaml_scenario].
+    /// 
+    /// When provided, `yaml_scenario` disables by default [HastConfig::skip_hast_messages].
     pub fn new_with_scenario(port: u16, token: String, yaml_dir: String, yaml_scenario: Option<String>) -> HastConfig {
         HastConfig {
             port,
@@ -101,6 +138,8 @@ pub struct Hast {
 }
 
 impl Hast {
+    /// Creates a new [Hast] by providing a configuration and a [Shutdown] object.
+    /// The latter is required to coordinate graceful shutdown.
     pub fn new(cfg: HastConfig, shutdown: Shutdown) -> Hast {
         Hast {
             cfg: Arc::new(Box::new(cfg)),
@@ -108,6 +147,7 @@ impl Hast {
         }
     }
 
+    /// Consumes the [Hast] instance and starts the server
     pub async fn run(mut self) -> Result<(), io::Error> {
         let addr = format!("127.0.0.1:{}", self.cfg.port);
 
