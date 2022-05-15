@@ -1,5 +1,6 @@
 pub mod sync;
 
+pub mod pirengine;
 pub mod json;
 pub mod wsapi;
 pub mod error;
