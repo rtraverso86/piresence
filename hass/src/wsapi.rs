@@ -224,6 +224,19 @@ impl WsApi {
         Ok(rx)
     }
 
+    pub async fn unsubscribe(&self, subscription: Id) -> Result<WsMessage> {
+        let (id, mut rx) = self.registration().await?;
+        // Unsubscribe from WS
+        self.send_command(Command::Message(
+            WsMessage::UnsubscribeEvents { id, subscription }
+        )).await?;
+        // Collect result
+        let res = rx.recv().await.ok_or(Error::NoNextMessage);
+        // Unregister message dispatching
+        self.send_command(Command::Unregister(subscription)).await?;
+        self.send_command(Command::Unregister(id)).await?;
+        res
+    }
 }
 
 fn result_or_error<T>(reply: WsMessage, result: T) -> Result<T> {

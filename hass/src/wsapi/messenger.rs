@@ -33,6 +33,7 @@ use super::{
 pub enum Command {
     Message(WsMessage),
     Register(Id, mpsc::Sender<WsMessage>),
+    Unregister(Id),
 }
 
 
@@ -76,7 +77,10 @@ impl WsApiMessenger {
                         },
                         Command::Register(id, reg_sender) => {
                             self.register(id, reg_sender);
-                        }
+                        },
+                        Command::Unregister(id) => {
+                            self.receivers.remove(&id);
+                        },
                     },
                     None => {
                         // Termination due to end of commands
@@ -165,7 +169,6 @@ impl WsApiMessenger {
         let receiver = id.map_or_else(
             || self.unhandled.as_ref(),
             |id| { self.receivers.get(&id) });
-
 
         if let Some(receiver) = receiver {
             tracing::debug!("dispatch to receiver={:p} msg with id={:?}", receiver, id);
