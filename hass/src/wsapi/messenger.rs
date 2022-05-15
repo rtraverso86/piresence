@@ -1,32 +1,18 @@
 use std::collections::BTreeMap;
-use std::sync::{
-    Arc,
-};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::anyhow;
 use futures_util::{SinkExt, StreamExt};
-use tokio::{
-    sync::mpsc,
-    time::{self, MissedTickBehavior},
-};
-use tokio_tungstenite::{
-    self,
-    tungstenite,
-};
-use tungstenite::{
-    Message,
-};
-
+use tokio::sync::mpsc;
+use tokio::time::{self, MissedTickBehavior};
+use tokio_tungstenite::{self, tungstenite::Message};
 
 use crate::error::{Error, Result};
 use crate::json::{self, Id, WsMessage};
 use crate::sync::{atomic::AtomicId, shutdown::Shutdown};
 
-use super::{
-    WebSocketStream,
-    KEEPALIVE_INTERVAL_SEC,
-};
+use super::{WebSocketStream, KEEPALIVE_INTERVAL_SEC};
 
 /// Represents commands understood by the `WsApiMessenger`.
 #[derive(Debug)]
