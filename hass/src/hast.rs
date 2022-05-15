@@ -163,11 +163,13 @@ pub mod server {
         /// Returns a watch channel that may be used to wait for the completion of [Hass]'s startup.
         /// 
         /// The corresponding sender will be dropped as soon as all services are up and running listening
-        /// on their respective ports.
+        /// on their respective ports, resulting in the [watch::Receiver::changed()] method returning.
+        /// Please note that, since startup and its waiting may happen out of order, the wait may either
+        /// return witn an `Ok(())` as well as with an `Err(_)`. Either way, the result should be discarded.
         pub fn startup_notifier(&self) -> watch::Receiver<()> {
             self.startup
                 .as_ref()
-                .and_then(|startup| Some(startup.subscribe()) )
+                .map(|s| s.subscribe())
                 .unwrap() // we're sure it's safe, as run() who takes `self.startup` consumes `self`
         }
 
