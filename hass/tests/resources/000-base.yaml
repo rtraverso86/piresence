@@ -1,0 +1,312 @@
+---
+type: event
+id: 3
+event:
+  data:
+    entity_id: binary_sensor.studio_motion_motion
+    new_state:
+      attributes:
+        device_class: motion
+        friendly_name: Studio Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b0534a329317ab8d2d0ef37f1bcb
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.studio_motion_motion
+      last_changed: "2022-05-10T23:34:50.163029+00:00"
+      last_updated: "2022-05-10T23:34:50.163029+00:00"
+      state: "on"
+    old_state:
+      attributes:
+        device_class: motion
+        friendly_name: Studio Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b0102f85331e9304c993044e1cf9
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.studio_motion_motion
+      last_changed: "2022-05-10T22:21:32.421485+00:00"
+      last_updated: "2022-05-10T22:21:32.421485+00:00"
+      state: "off"
+  event_type: state_changed
+  time_fired: "2022-05-10T23:34:50.163029Z"
+  origin: LOCAL
+  context:
+    id: 0180b0534a329317ab8d2d0ef37f1bcb
+    parent_id: ~
+    user_id: ~
+---
+type: event
+id: 3
+event:
+  data:
+    entity_id: binary_sensor.disbrigo_motion_motion
+    new_state:
+      attributes:
+        device_class: motion
+        friendly_name: Disbrigo Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b05357af77a6b42b4d57832f995f
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.disbrigo_motion_motion
+      last_changed: "2022-05-10T23:34:53.615363+00:00"
+      last_updated: "2022-05-10T23:34:53.615363+00:00"
+      state: "on"
+    old_state:
+      attributes:
+        device_class: motion
+        friendly_name: Disbrigo Motion Motion
+        motion_valid: true
+      context:
+        id: 0180afd00cce517c024c64d4fd91d851
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.disbrigo_motion_motion
+      last_changed: "2022-05-10T21:11:29.230283+00:00"
+      last_updated: "2022-05-10T21:11:29.230283+00:00"
+      state: "off"
+  event_type: state_changed
+  time_fired: "2022-05-10T23:34:53.615363Z"
+  origin: LOCAL
+  context:
+    id: 0180b05357af77a6b42b4d57832f995f
+    parent_id: ~
+    user_id: ~
+---
+type: event
+id: 3
+event:
+  data:
+    entity_id: binary_sensor.camera_motion_motion
+    new_state:
+      attributes:
+        device_class: motion
+        friendly_name: Camera Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b053650667700128a74a51d0bee4
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.camera_motion_motion
+      last_changed: "2022-05-10T23:34:57.030271+00:00"
+      last_updated: "2022-05-10T23:34:57.030271+00:00"
+      state: "on"
+    old_state:
+      attributes:
+        device_class: motion
+        friendly_name: Camera Motion Motion
+        motion_valid: true
+      context:
+        id: 0180afb5c991d38f355155fe9da4b321
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.camera_motion_motion
+      last_changed: "2022-05-10T20:42:48.081634+00:00"
+      last_updated: "2022-05-10T20:42:48.081634+00:00"
+      state: "off"
+  event_type: state_changed
+  time_fired: "2022-05-10T23:34:57.030271Z"
+  origin: LOCAL
+  context:
+    id: 0180b053650667700128a74a51d0bee4
+    parent_id: ~
+    user_id: ~
+---
+type: event
+id: 3
+event:
+  data:
+    entity_id: binary_sensor.studio_motion_motion
+    new_state:
+      attributes:
+        device_class: motion
+        friendly_name: Studio Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b05370e470a881b181a9666597b9
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.studio_motion_motion
+      last_changed: "2022-05-10T23:35:00.068447+00:00"
+      last_updated: "2022-05-10T23:35:00.068447+00:00"
+      state: "off"
+    old_state:
+      attributes:
+        device_class: motion
+        friendly_name: Studio Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b0534a329317ab8d2d0ef37f1bcb
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.studio_motion_motion
+      last_changed: "2022-05-10T23:34:50.163029+00:00"
+      last_updated: "2022-05-10T23:34:50.163029+00:00"
+      state: "on"
+  event_type: state_changed
+  time_fired: "2022-05-10T23:35:00.068447Z"
+  origin: LOCAL
+  context:
+    id: 0180b05370e470a881b181a9666597b9
+    parent_id: ~
+    user_id: ~
+---
+type: event
+id: 3
+event:
+  data:
+    entity_id: binary_sensor.studio_motion_motion
+    new_state:
+      attributes:
+        device_class: motion
+        friendly_name: Studio Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b0537588fdae4b4aa829cbb33363
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.studio_motion_motion
+      last_changed: "2022-05-10T23:35:01.256969+00:00"
+      last_updated: "2022-05-10T23:35:01.256969+00:00"
+      state: "on"
+    old_state:
+      attributes:
+        device_class: motion
+        friendly_name: Studio Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b05370e470a881b181a9666597b9
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.studio_motion_motion
+      last_changed: "2022-05-10T23:35:00.068447+00:00"
+      last_updated: "2022-05-10T23:35:00.068447+00:00"
+      state: "off"
+  event_type: state_changed
+  time_fired: "2022-05-10T23:35:01.256969Z"
+  origin: LOCAL
+  context:
+    id: 0180b0537588fdae4b4aa829cbb33363
+    parent_id: ~
+    user_id: ~
+---
+type: event
+id: 3
+event:
+  data:
+    entity_id: binary_sensor.camera_motion_motion
+    new_state:
+      attributes:
+        device_class: motion
+        friendly_name: Camera Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b0538bc03159ba369384e1bc4a97
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.camera_motion_motion
+      last_changed: "2022-05-10T23:35:06.944867+00:00"
+      last_updated: "2022-05-10T23:35:06.944867+00:00"
+      state: "off"
+    old_state:
+      attributes:
+        device_class: motion
+        friendly_name: Camera Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b053650667700128a74a51d0bee4
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.camera_motion_motion
+      last_changed: "2022-05-10T23:34:57.030271+00:00"
+      last_updated: "2022-05-10T23:34:57.030271+00:00"
+      state: "on"
+  event_type: state_changed
+  time_fired: "2022-05-10T23:35:06.944867Z"
+  origin: LOCAL
+  context:
+    id: 0180b0538bc03159ba369384e1bc4a97
+    parent_id: ~
+    user_id: ~
+---
+type: event
+id: 3
+event:
+  data:
+    entity_id: binary_sensor.disbrigo_motion_motion
+    new_state:
+      attributes:
+        device_class: motion
+        friendly_name: Disbrigo Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b05390c4120f5b9d1b9e3f8387c0
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.disbrigo_motion_motion
+      last_changed: "2022-05-10T23:35:08.228993+00:00"
+      last_updated: "2022-05-10T23:35:08.228993+00:00"
+      state: "off"
+    old_state:
+      attributes:
+        device_class: motion
+        friendly_name: Disbrigo Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b05357af77a6b42b4d57832f995f
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.disbrigo_motion_motion
+      last_changed: "2022-05-10T23:34:53.615363+00:00"
+      last_updated: "2022-05-10T23:34:53.615363+00:00"
+      state: "on"
+  event_type: state_changed
+  time_fired: "2022-05-10T23:35:08.228993Z"
+  origin: LOCAL
+  context:
+    id: 0180b05390c4120f5b9d1b9e3f8387c0
+    parent_id: ~
+    user_id: ~
+---
+type: event
+id: 3
+event:
+  data:
+    entity_id: binary_sensor.studio_motion_motion
+    new_state:
+      attributes:
+        device_class: motion
+        friendly_name: Studio Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b0539c9493e692ef2ddb700a4be3
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.studio_motion_motion
+      last_changed: "2022-05-10T23:35:11.252910+00:00"
+      last_updated: "2022-05-10T23:35:11.252910+00:00"
+      state: "off"
+    old_state:
+      attributes:
+        device_class: motion
+        friendly_name: Studio Motion Motion
+        motion_valid: true
+      context:
+        id: 0180b0537588fdae4b4aa829cbb33363
+        parent_id: ~
+        user_id: ~
+      entity_id: binary_sensor.studio_motion_motion
+      last_changed: "2022-05-10T23:35:01.256969+00:00"
+      last_updated: "2022-05-10T23:35:01.256969+00:00"
+      state: "on"
+  event_type: state_changed
+  time_fired: "2022-05-10T23:35:11.252910Z"
+  origin: LOCAL
+  context:
+    id: 0180b0539c9493e692ef2ddb700a4be3
+    parent_id: ~
+    user_id: ~

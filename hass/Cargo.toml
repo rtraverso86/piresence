@@ -38,6 +38,7 @@ serde_yaml = {version = "0.8", optional = true }
 
 [dev-dependencies]
 tracing-test = { version = "0.2" }
+serial_test = "*"
 
 [features]
 default = [ "serde_yaml", "hast-server" ]
