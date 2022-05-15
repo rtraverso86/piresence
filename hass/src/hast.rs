@@ -85,13 +85,14 @@ pub mod server {
         /// 
         /// When provided, `yaml_scenario` disables by default [HastConfig::skip_hast_messages].
         pub fn new_with_scenario(port: u16, token: String, yaml_dir: String, yaml_scenario: Option<String>) -> HastConfig {
+            let skip_hast_messages = yaml_scenario.is_some();
             HastConfig {
                 port,
                 token,
                 yaml_dir,
                 yaml_scenario,
                 ha_version: format!("{}-{}", env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_NAME")),
-                skip_hast_messages: false,
+                skip_hast_messages,
             }
         }
     }
