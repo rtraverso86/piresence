@@ -338,6 +338,11 @@ pub mod server {
                 send(Pong { id });
             },
 
+            UnsubscribeEvents { id, subscription } => {
+                tracing::warn!("handle message: unsupported UnsubscribeEvents id={} subscription={}", id, subscription);
+                send(WsMessage::new_result_success(id));
+            },
+
             m => {
                 send(Result {
                     id: m.id().unwrap_or(0),
