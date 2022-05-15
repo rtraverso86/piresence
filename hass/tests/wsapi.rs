@@ -1,58 +1,56 @@
-use hass::sync::shutdown::Manager;
-use hass::hast::server::{HastConfig, Hast};
+mod commons;
 
-const WS_PORT : u16 = 8123;
-const WS_TOKEN : &str = "letmein";
+use commons::*;
+use hass::WsApi;
+use hass::WsMessage;
+use hass::error as herror;
 
-async fn new(scenario: &str) -> Manager {
-    let manager = Manager::new();
-    let yaml_dir = format!("{}/resources/", env!("CARGO_MANIFEST_DIR"));
-    let cfg = HastConfig::new_with_scenario(
-        WS_PORT,
-        WS_TOKEN.to_owned(),
-        yaml_dir,
-        Some(scenario.to_owned())
-    );
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[serial_test::serial]
+async fn auth_failed() {
+    let manager = hast_start(HAEVLO_000_BASE.0).await;
+    let wsapi = WsApi::new_unsecure(WS_HOST, WS_PORT, &format!("{}_", WS_TOKEN), manager.subscribe()).await;
+    manager.shutdown().await;
+    match wsapi {
+        Err(herror::Error::Authentication(_)) => (),
+        o => panic!("unexpected result: {:?}", o)
+    }
+}
 
-    let hast = Hast::new(cfg, manager.subscribe());
-    let mut startup_notifier = hast.startup_notifier();
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[serial_test::serial]
+async fn auth_success() {
+    let manager = hast_start(HAEVLO_000_BASE.0).await;
+    let wsapi = hast_connect(&manager).await;
+    manager.shutdown().await;
+    match wsapi {
+        Ok(_) => (),
+        Err(e) => panic!("unexpected error: {}", e)
+    }
+}
 
-    tokio::spawn(async move {
-        if let Err(e) = hast.run().await {
-            println!("hast quit with error: {}", e);
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[serial_test::serial]
+async fn receive_events_any() {
+    let manager = hast_start(HAEVLO_000_BASE.0).await;
+    let wsapi = hast_connect(&manager).await.unwrap();
+
+    let mut rx = wsapi.subscribe_event(None).await.unwrap();
+    let mut count = 0;
+    while let Some(msg) = rx.recv().await {
+        count += 1;
+        assert!(msg.id().is_some());
+        if count == HAEVLO_000_BASE.1 {
+            let msg_id = msg.id().unwrap();
+            let msg = wsapi.unsubscribe(msg_id).await.unwrap();
+            assert!(matches!(msg, WsMessage::Result { success: true, ..}));
+            break;
         }
-    });
+    }
+    if let Some(msg) = rx.recv().await {
+        panic!("should have returned None, but instead got: {:?}", msg);
+    }
 
-    let _ = startup_notifier.changed().await;
-
-    manager
-}
-
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[serial_test::serial]
-async fn test() {
-    let manager = new("000-base.yaml").await;
-    
-    manager.shutdown().await;
-}
-
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[serial_test::serial]
-
-async fn test2() {
-    let manager = new("000-base.yaml").await;
-    
-    manager.shutdown().await;
-}
-
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[serial_test::serial]
-
-async fn test3() {
-    let manager = new("000-base.yaml").await;
-    
     manager.shutdown().await;
 }
