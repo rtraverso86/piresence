@@ -1,9 +1,11 @@
 # PiRESENCE - PIR-based presence detection
 
-This is the source repository of PiRESENCE, an Home Assistant (HA) addon for room presence detection.
+A word of warning, first: this is an ongoing, unfinished project I'm developing for fun, mainly as an excuse to learn Rust.
 
-The addon listens to events from motion detector sensor via HA, updates the current status
-and predicts the presence state for each interconnected room, and provides the informaton back to
+This is the source repository of PiRESENCE, a (wannabe) Home Assistant (HA) addon for room presence detection.
+
+The addon (will) listen to events from motion detector sensor via HA, update the current status
+and predict the presence state for each interconnected room, providing the informaton back to
 HA to be used for triggers or conditions.
 
 ## Cross-Compilation for Raspberry 4
