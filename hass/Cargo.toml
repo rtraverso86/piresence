@@ -8,6 +8,7 @@ description = """
 Library for asynchronous interaction with Home Assistant and event
 processing for piresence.
 """
+license = "Apache-2.0 OR MIT"
 
 [[bin]]
 name = "hast"

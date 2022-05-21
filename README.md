@@ -61,3 +61,11 @@ You may now compile the target like this:
 ```bash
 cross build --release --target=aarch64-unknown-linux-musl
 ```
+
+## License
+
+PiRESENCE is distributed under the terms of both the MIT license and
+the Apache License (Version 2.0).
+
+See [LICENSE-APACHE](LICENSE-APACHE), [LICENSE-MIT](LICENSE-MIT) for
+details.
