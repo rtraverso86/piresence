@@ -36,15 +36,25 @@ pub struct VecGraph<N> {
     edges: Vec<bool>,
     nodes: Vec<N>,
     capacity: usize,
+    is_undirected: bool,
 }
 
 impl<N> VecGraph<N> {
-    pub fn new(capacity: usize) -> VecGraph<N> {
+    pub fn new(capacity: usize, is_undirected: bool) -> VecGraph<N> {
         VecGraph {
             edges: vec![false; capacity * capacity],
             nodes: Vec::with_capacity(capacity),
             capacity,
+            is_undirected,
         }
+    }
+
+    pub fn new_directed(capacity: usize) -> VecGraph<N> {
+        Self::new(capacity, false)
+    }
+
+    pub fn new_undirected(capacity: usize) -> VecGraph<N> {
+        Self::new(capacity, true)
     }
 
     pub fn add_node(&mut self, node: N) -> Option<NodeId> {
@@ -72,11 +82,19 @@ impl<N> VecGraph<N> {
     pub fn add_edge(&mut self, from: NodeId, to: NodeId) {
         let idx = self.get_edge_id(from, to);
         self.edges[idx] = true;
+        if self.is_undirected {
+            let idx = self.get_edge_id(to, from);
+            self.edges[idx] = true;
+        }
     }
 
     pub fn remove_edge(&mut self, from: NodeId, to: NodeId) {
         let idx = self.get_edge_id(from, to);
         self.edges[idx] = false;
+        if self.is_undirected {
+            let idx = self.get_edge_id(to, from);
+            self.edges[idx] = false;
+        }
     }
 
     pub fn capacity(&self) -> usize {
@@ -94,6 +112,18 @@ impl<N> VecGraph<N> {
             panic!("unexisting nodes");
         }
         from * sz + to
+    }
+
+    pub fn neighbours(&self, of: NodeId) -> Vec<NodeId> {
+        let mut ns = vec![];
+        let sz = self.nodes.len();
+        let base = of * sz;
+        for (i, idx) in (base..(base + sz)).enumerate() {
+            if self.edges[idx] && i != of {
+                ns.push(i);
+            }
+        }
+        ns
     }
 
 }
