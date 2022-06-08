@@ -127,3 +127,51 @@ impl<N> VecGraph<N> {
     }
 
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct Room {
+        pub id: String,
+    }
+
+    impl Room {
+        pub fn new(id: &str) -> Room {
+            Room { id: id.to_owned() }
+        }
+    }
+
+    #[test]
+    pub fn undirected_small() {
+        let mut home = VecGraph::<Room>::new_undirected(3);
+        assert_eq!(home.capacity(), 3);
+        assert_eq!(home.node_count(), 0);
+        let id_entrance = home.add_node(Room::new("entrance")).unwrap();
+        assert_eq!(home.node_count(), 1);
+        let id_living = home.add_node(Room::new("living room")).unwrap();
+        assert_eq!(home.node_count(), 2);
+        let id_kitchen = home.add_node(Room::new("kitchen")).unwrap();
+        assert_eq!(home.node_count(), 3);
+        home.add_edge(id_entrance, id_living);
+        home.add_edge(id_living, id_kitchen);
+
+        assert_eq!(home.capacity(), 3);
+        assert_eq!(home.node_count(), 3);
+
+        let found_living = home.find_node_id(|r| { r.id == "living room"}).unwrap();
+        assert_eq!(found_living, id_living);
+
+        assert!(home.find_node_id(|_| {false} ).is_none());
+
+        let expected_neighbours = vec![id_living];
+        assert_eq!(expected_neighbours, home.neighbours(id_entrance));
+
+        let expected_neighbours = vec![id_entrance, id_kitchen];
+        assert_eq!(expected_neighbours, home.neighbours(id_living));
+
+        let expected_neighbours = vec![id_living];
+        assert_eq!(expected_neighbours, home.neighbours(id_kitchen));
+    }
+}
