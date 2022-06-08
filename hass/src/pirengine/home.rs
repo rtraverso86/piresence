@@ -36,25 +36,15 @@ pub struct VecGraph<N> {
     edges: Vec<bool>,
     nodes: Vec<N>,
     capacity: usize,
-    is_undirected: bool,
 }
 
 impl<N> VecGraph<N> {
-    pub fn new(capacity: usize, is_undirected: bool) -> VecGraph<N> {
+    pub fn new_undirected(capacity: usize) -> VecGraph<N> {
         VecGraph {
             edges: vec![false; capacity * capacity],
             nodes: Vec::with_capacity(capacity),
             capacity,
-            is_undirected,
         }
-    }
-
-    pub fn new_directed(capacity: usize) -> VecGraph<N> {
-        Self::new(capacity, false)
-    }
-
-    pub fn new_undirected(capacity: usize) -> VecGraph<N> {
-        Self::new(capacity, true)
     }
 
     pub fn add_node(&mut self, node: N) -> Option<NodeId> {
@@ -80,21 +70,15 @@ impl<N> VecGraph<N> {
     }
 
     pub fn add_edge(&mut self, from: NodeId, to: NodeId) {
-        let idx = self.get_edge_id(from, to);
-        self.edges[idx] = true;
-        if self.is_undirected {
-            let idx = self.get_edge_id(to, from);
-            self.edges[idx] = true;
-        }
+        let (idx1, idx2) = self.get_edge_id(from, to);
+        self.edges[idx1] = true;
+        self.edges[idx2] = true;
     }
 
     pub fn remove_edge(&mut self, from: NodeId, to: NodeId) {
-        let idx = self.get_edge_id(from, to);
-        self.edges[idx] = false;
-        if self.is_undirected {
-            let idx = self.get_edge_id(to, from);
-            self.edges[idx] = false;
-        }
+        let (idx1, idx2) = self.get_edge_id(from, to);
+        self.edges[idx1] = false;
+        self.edges[idx2] = false;
     }
 
     pub fn capacity(&self) -> usize {
@@ -106,12 +90,12 @@ impl<N> VecGraph<N> {
     }
 
     #[inline]
-    fn get_edge_id(&self, from: NodeId, to: NodeId) -> usize {
+    fn get_edge_id(&self, from: NodeId, to: NodeId) -> (usize, usize) {
         let sz = self.nodes.len();
         if sz == 0 || from.max(to) >= sz {
             panic!("unexisting nodes");
         }
-        from * sz + to
+        (from * sz + to, to * sz + from)
     }
 
     pub fn neighbours(&self, of: NodeId) -> Vec<NodeId> {
