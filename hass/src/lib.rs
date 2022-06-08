@@ -5,8 +5,6 @@ pub mod json;
 pub mod wsapi;
 pub mod error;
 
-#[cfg(any(feature = "serde_yaml", test))]
-pub mod yaml;
 #[cfg(any(feature = "hast-client", feature = "hast-server", test))]
 pub mod hast;
 
