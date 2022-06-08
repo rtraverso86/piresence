@@ -157,5 +157,18 @@ mod tests {
 
         let expected_neighbours = vec![id_living];
         assert_eq!(expected_neighbours, home.neighbours(id_kitchen));
+
+        home.remove_edge(id_living, id_entrance);
+
+        assert!(home.neighbours(id_entrance).is_empty());
+
+        let expected_neighbours = vec![id_kitchen];
+        assert_eq!(expected_neighbours, home.neighbours(id_living));
+
+        home.remove_edge(id_living, id_kitchen);
+
+        assert!(home.neighbours(id_living).is_empty());
+
+        assert!(home.neighbours(id_kitchen).is_empty());
     }
 }
