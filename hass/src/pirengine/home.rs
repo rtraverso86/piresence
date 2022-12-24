@@ -47,6 +47,13 @@ impl<N> VecGraph<N> {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.nodes.clear();
+        for ele in &mut self.edges {
+            *ele = false;
+        }
+    }
+
     pub fn add_node(&mut self, node: N) -> Option<NodeId> {
         if self.nodes.len() == self.nodes.capacity() {
             return None;

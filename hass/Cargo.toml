@@ -40,6 +40,13 @@ serde_yaml = {version = "0.8", optional = true }
 [dev-dependencies]
 tracing-test = { version = "0.2" }
 serial_test = "*"
+criterion = { version = "0.4" }
+rand = "*"
+
+[[bench]]
+name = "hass_bench"
+harness = false
+
 
 [features]
 default = [ "serde_yaml", "hast-server" ]
