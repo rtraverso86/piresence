@@ -32,11 +32,18 @@ mod graph {
         }
     }
 
+    fn g_get_node(g: &VecGraph<Room>) {
+        for n in 0..g.capacity() {
+            g.get_node(n);
+        }
+    }
+
     pub fn home_graph_bench(c: &mut Criterion) {
         let mut home = VecGraph::<Room>::new_undirected(20);
 
         c.bench_function("init", |b| b.iter(|| g_init(black_box(&mut home))));
-        c.bench_function("neighbours", |b| b.iter(|| g_neighbours(black_box(&mut home))));
+        c.bench_function("neighbours", |b| b.iter(|| g_neighbours(black_box(&home))));
+        c.bench_function("get_node", |b| b.iter(|| g_get_node(black_box(&home))));
         
     }
 
