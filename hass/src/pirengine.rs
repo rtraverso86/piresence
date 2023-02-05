@@ -4,3 +4,4 @@
 //! perform PIR-based room presence detection.
 
 pub mod home;
+pub mod trie;

@@ -49,5 +49,72 @@ mod graph {
 
 }
 
-criterion_group!(benches, graph::home_graph_bench);
-criterion_main!(benches);
+mod trie {
+    use std::collections::HashMap;
+
+    use super::*;
+    use hass::pirengine::trie::{HashedTrie, HashMapTrie, TrieLookup};
+    use rand::{Rng, RngCore};
+
+    pub fn insert_benchmark(c: &mut Criterion) {
+        let mut trie = HashedTrie::new();
+        let mut htrie = HashMapTrie::new();
+
+        let mut rng = rand::thread_rng();
+        let mut keys: Vec<String> = Vec::with_capacity(1000);
+        for _ in 0..1000 {
+            let key: String = (0..10).map(|_| (0x20u8 + (rng.next_u32() % 96) as u8) as char).collect();
+            keys.push(key);
+        }
+
+        let mut group = c.benchmark_group("TrieLookup::insert()");
+        group.bench_function("HashedTrie", |b| {
+            b.iter(|| {
+                for i in 0..1000 {
+                    trie.insert(&keys[i], i as i32);
+                }
+            })
+        });
+        group.bench_function("HashMap", |b| {
+            b.iter(|| {
+                for i in 0..1000 {
+                    htrie.insert(&keys[i], i as i32);
+                }
+            })
+        });
+    }
+
+    pub fn search_benchmark(c: &mut Criterion) {
+        let mut trie = HashedTrie::new();
+        let mut htrie = HashMapTrie::new();
+
+        let mut rng = rand::thread_rng();
+        let mut keys: Vec<String> = Vec::with_capacity(1000);
+        for i in 0..1000 {
+            let key: String = (0..10).map(|_| (0x20u8 + (rng.next_u32() % 96) as u8) as char).collect();
+            keys.push(key);
+            trie.insert(&keys[i], i as i32);
+            htrie.insert(&keys[i], i as i32);
+        }
+
+        let mut group = c.benchmark_group("TrieLookup::search()");
+        group.bench_function("HashedTrie", |b| {
+            b.iter(|| {
+                for i in 0..1000 {
+                    black_box(trie.search(&keys[i]));
+                }
+            })
+        });
+        group.bench_function("HashMapTrie", |b| {
+            b.iter(|| {
+                for i in 0..1000 {
+                    black_box(htrie.search(&keys[i]));
+                }
+            })
+        });
+    }
+}
+
+criterion_group!(benches_graph, graph::home_graph_bench);
+criterion_group!(benches_trie, trie::insert_benchmark, trie::search_benchmark);
+criterion_main!(benches_graph, benches_trie);
