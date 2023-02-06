@@ -53,12 +53,13 @@ mod trie {
     use std::collections::HashMap;
 
     use super::*;
-    use hass::pirengine::trie::{HashedTrie, HashMapTrie, TrieLookup};
+    use hass::pirengine::trie::{HashedTrie, HashMapTrie, TrieLookup, Trie};
     use rand::{Rng, RngCore};
 
     pub fn insert_benchmark(c: &mut Criterion) {
-        let mut trie = HashedTrie::new();
-        let mut htrie = HashMapTrie::new();
+        let mut h_trie = HashedTrie::new();
+        let mut hm_htrie = HashMapTrie::new();
+        let mut trie = Trie::new();
 
         let mut rng = rand::thread_rng();
         let mut keys: Vec<String> = Vec::with_capacity(1000);
@@ -71,44 +72,60 @@ mod trie {
         group.bench_function("HashedTrie", |b| {
             b.iter(|| {
                 for i in 0..1000 {
-                    trie.insert(&keys[i], i as i32);
-                }
-            })
-        });
-        group.bench_function("HashMap", |b| {
-            b.iter(|| {
-                for i in 0..1000 {
-                    htrie.insert(&keys[i], i as i32);
-                }
-            })
-        });
-    }
-
-    pub fn search_benchmark(c: &mut Criterion) {
-        let mut trie = HashedTrie::new();
-        let mut htrie = HashMapTrie::new();
-
-        let mut rng = rand::thread_rng();
-        let mut keys: Vec<String> = Vec::with_capacity(1000);
-        for i in 0..1000 {
-            let key: String = (0..10).map(|_| (0x20u8 + (rng.next_u32() % 96) as u8) as char).collect();
-            keys.push(key);
-            trie.insert(&keys[i], i as i32);
-            htrie.insert(&keys[i], i as i32);
-        }
-
-        let mut group = c.benchmark_group("TrieLookup::search()");
-        group.bench_function("HashedTrie", |b| {
-            b.iter(|| {
-                for i in 0..1000 {
-                    black_box(trie.search(&keys[i]));
+                    h_trie.insert(&keys[i], i as i32);
                 }
             })
         });
         group.bench_function("HashMapTrie", |b| {
             b.iter(|| {
                 for i in 0..1000 {
-                    black_box(htrie.search(&keys[i]));
+                    hm_htrie.insert(&keys[i], i as i32);
+                }
+            })
+        });
+        group.bench_function("Trie", |b| {
+            b.iter(|| {
+                for i in 0..1000 {
+                    trie.insert(&keys[i], i as i32);
+                }
+            })
+        });
+    }
+
+    pub fn search_benchmark(c: &mut Criterion) {
+        let mut h_trie = HashedTrie::new();
+        let mut hm_trie = HashMapTrie::new();
+        let mut trie = Trie::new();
+
+        let mut rng = rand::thread_rng();
+        let mut keys: Vec<String> = Vec::with_capacity(1000);
+        for i in 0..1000 {
+            let key: String = (0..10).map(|_| (0x20u8 + (rng.next_u32() % 96) as u8) as char).collect();
+            keys.push(key);
+            h_trie.insert(&keys[i], i as i32);
+            hm_trie.insert(&keys[i], i as i32);
+            trie.insert(&keys[i], i as i32)
+        }
+
+        let mut group = c.benchmark_group("TrieLookup::search()");
+        group.bench_function("HashedTrie", |b| {
+            b.iter(|| {
+                for i in 0..1000 {
+                    black_box(h_trie.search(&keys[i]));
+                }
+            })
+        });
+        group.bench_function("HashMapTrie", |b| {
+            b.iter(|| {
+                for i in 0..1000 {
+                    black_box(hm_trie.search(&keys[i]));
+                }
+            })
+        });
+        group.bench_function("Trie", |b| {
+            b.iter(|| {
+                for i in 0..1000 {
+                    black_box(trie.search(&keys[i]));
                 }
             })
         });
